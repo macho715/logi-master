@@ -27,6 +27,17 @@ def tmp_workspace(tmp_path: Path) -> Path:
     (ws / "C_HVDC_PJT" / "dup.txt").write_text("B\n", encoding="utf-8")
     repo_root = Path(__file__).resolve().parent
     shutil.copy2(repo_root / "devmind.py", ws / "devmind.py")
+    for module in [
+        "autosort.py",
+        "scan.py",
+        "classify.py",
+        "organize.py",
+        "report.py",
+        "utils.py",
+    ]:
+        module_path = repo_root / module
+        if module_path.exists():
+            shutil.copy2(module_path, ws / module)
     package_root = repo_root / "logi"
     if package_root.exists():
         shutil.copytree(package_root, ws / "logi", dirs_exist_ok=True)
