@@ -258,6 +258,80 @@ def cluster(scores, emit, project_mode, k, safe_map_path):
         out = local_cluster(items, k=k, hints=DEFAULT_HINTS)
         json.dump(out, open(emit,"w",encoding="utf-8"), ensure_ascii=False, indent=2)
 
+# ====== GPT 모드 구현 (마스킹·메타만 전송) ======
+def build_gpt_payload(items, max_snip=500):
+    safe = []
+    for it in items:
+        safe_id = it.get("safe_id") or sha256_str(it.get("path",""))
+        safe.append({
+            "id": safe_id,                               # ★ 경로 대신 safe_id
+            "name": it.get("name",""),
+            "ext": it.get("ext",""),
+            "size": it.get("size",0),
+            "mime": "text/plain",
+            "snippet": (it.get("hint","") or "")[:max_snip],
+            "rule_tags": [it.get("bucket","tmp")],
+            # 경로 정보는 마스킹된 힌트만(말단 2~3단)
+            "path_hint": normalize_label("/".join(Path(it.get("path","")).parts[-3:]))
+        })
+    return safe
+
+GPT_SYSTEM = """You cluster files by project for developer workspaces.
+Return JSON for function call:
+{"projects":[{"project_id": "...","project_label":"...","doc_ids":["<id>"],"role_bucket_map":{},"confidence":0.0,"reasons":["..."]}]}
+- Use short snake_case labels.
+- Max 12 clusters.
+- No raw text beyond 15 words in reasons.
+"""
+
+def gpt_cluster(items, safe_map_path, model_env_var="OPENAI_API_KEY"):
+    import os, json
+    import urllib.request
+
+    api_key = os.environ.get(model_env_var)
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY not set")
+
+    payload = {
+        "model": "gpt-4o-mini",
+        "messages": [
+            {"role":"system","content": GPT_SYSTEM},
+            {"role":"user","content": json.dumps(build_gpt_payload(items), ensure_ascii=False)}
+        ],
+        "response_format": {"type":"json_object"},
+        "temperature": 0.2
+    }
+
+    req = urllib.request.Request(
+        "https://api.openai.com/v1/chat/completions",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type":"application/json","Authorization":f"Bearer {api_key}"}
+    )
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        out = json.loads(resp.read().decode("utf-8"))
+
+    content = out["choices"][0]["message"]["content"]
+    data = json.loads(content)  # {"projects":[{..., "doc_ids":[safe_id,...]}]}
+
+    # ★ 여기서 safe_id → path 역매핑
+    safe_map = json.load(open(safe_map_path, encoding="utf-8"))
+    projects = []
+    for p in data.get("projects", []):
+        ids = p.get("doc_ids", [])
+        paths = [safe_map.get(i) for i in ids if i in safe_map]  # 없는 id는 드롭
+        if not paths:
+            continue
+        label = normalize_label(p.get("project_label") or p.get("project_id") or "misc")
+        projects.append({
+            "project_id": label,
+            "project_label": label,
+            "doc_ids": paths,              # ← organize가 기대하는 "path" 리스트로 변환 완료
+            "role_bucket_map": p.get("role_bucket_map", {}),
+            "confidence": float(p.get("confidence", 0.7)),
+            "reasons": p.get("reasons", []) + ["mapped_via_safe_map"]
+        })
+    return {"projects": projects}
+
 # ---------- organize (바로 이동 + 버전 보존) ----------
 SCHEMA = [
     "src/core/","src/utils/","src/pipelines/","scripts/","tests/unit/","tests/integration/",
