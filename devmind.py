@@ -233,8 +233,8 @@ def local_cluster(items, k: int | None = None, hints=DEFAULT_HINTS):
 @click.option("--scores", default=".cache/scores.json")
 @click.option("--emit", default=".cache/projects.json")
 @click.option("--project-mode", type=click.Choice(["local","gpt"]), default="local", show_default=True)
-@click.option("--k", type=int, default=None)
-@click.option("--safe-map", "safe_map_path", default=".cache/safe_map.json", show_default=True)  # ★ 추가
+@click.option("--k", type=int, default=None, help="local 모드에서 클러스터 수 힌트(없으면 sqrt(n))")
+@click.option("--safe-map", "safe_map_path", default=".cache/safe_map.json", show_default=True)
 def cluster(scores, emit, project_mode, k, safe_map_path):
     items = json.load(open(scores, encoding="utf-8"))
     items = [x for x in items if "path" in x]
@@ -245,7 +245,7 @@ def cluster(scores, emit, project_mode, k, safe_map_path):
         click.echo(f"[cluster/local] {len(out.get('projects',[]))} projects -> {emit}")
         return
 
-    # gpt 모드
+    # gpt 모드 (safe_map.json 방식)
     try:
         out = gpt_cluster(items, safe_map_path=safe_map_path)
         # 결과 없으면 local로 안전 대체
@@ -254,6 +254,7 @@ def cluster(scores, emit, project_mode, k, safe_map_path):
         json.dump(out, open(emit,"w",encoding="utf-8"), ensure_ascii=False, indent=2)
         click.echo(f"[cluster/gpt] {len(out.get('projects',[]))} projects -> {emit}")
     except Exception as e:
+        # 완전 안전장치: 실패 시 local로 대체
         click.echo(f"[cluster/gpt] error -> fallback to local: {e}")
         out = local_cluster(items, k=k, hints=DEFAULT_HINTS)
         json.dump(out, open(emit,"w",encoding="utf-8"), ensure_ascii=False, indent=2)
