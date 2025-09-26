@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import copy
 import csv
-import dataclasses
 import hashlib
 import html
 import json
@@ -22,11 +21,12 @@ import sys
 import textwrap
 import time
 from collections import Counter, defaultdict
-from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, cast
 
 import click
+
+from logi import Field, LogiBaseModel, LogisticsMetadata
 
 try:
     import yaml
@@ -332,8 +332,7 @@ def read_sample(path: Path, sample_bytes: int) -> str:
     return mask_sensitive_text(text)
 
 
-@dataclass
-class DocumentRecord:
+class DocumentRecord(LogiBaseModel):
     """KR: 스캔 결과 레코드. EN: Representation of scanned file metadata."""
 
     path: str
@@ -345,35 +344,25 @@ class DocumentRecord:
     mimetype: str
     dir_hint: str
     blake3: Optional[str] = None
-    imports: List[str] = field(default_factory=list)
+    imports: List[str] = Field(default_factory=list)
     top_comment: Optional[str] = None
-    md_headings: List[str] = field(default_factory=list)
-    json_root_keys: List[str] = field(default_factory=list)
-    csv_header: List[str] = field(default_factory=list)
+    md_headings: List[str] = Field(default_factory=list)
+    json_root_keys: List[str] = Field(default_factory=list)
+    csv_header: List[str] = Field(default_factory=list)
     sample: str = ""
     bucket: Optional[str] = None
 
     def to_json(self) -> Dict[str, Any]:
-        """KR: JSON 직렬화. EN: Convert dataclass into dict for JSON."""
+        """KR: JSON 직렬화. EN: Convert model into JSON dictionary."""
 
-        payload = dataclasses.asdict(self)
+        payload = self.model_dump()
         return payload
 
 
 def record_from_entry(entry: Dict[str, Any]) -> DocumentRecord:
     """KR: dict→DocumentRecord 변환. EN: Convert dict to DocumentRecord."""
 
-    kwargs: Dict[str, Any] = {}
-    for field_info in dataclasses.fields(DocumentRecord):
-        if field_info.name in entry and entry[field_info.name] is not None:
-            kwargs[field_info.name] = entry[field_info.name]
-        elif field_info.default is not dataclasses.MISSING:
-            kwargs[field_info.name] = field_info.default
-        elif field_info.default_factory is not dataclasses.MISSING:
-            kwargs[field_info.name] = field_info.default_factory()
-        else:
-            kwargs[field_info.name] = None
-    return DocumentRecord(**kwargs)
+    return DocumentRecord.model_validate(entry)
 
 
 class ScanCache:
@@ -384,16 +373,16 @@ class ScanCache:
         # SQLite 잠금 문제 해결: WAL 모드 + timeout + busy_timeout
         self.conn = sqlite3.connect(str(db_path), timeout=30.0)
         cur = self.conn.cursor()
-        
+
         # WAL 모드 설정: 읽기(다수) + 쓰기(1) 동시 허용, 잠금 충돌 감소
         cur.execute("PRAGMA journal_mode=WAL;")
-        
+
         # Busy 핸들러: 잠금 시 재시도 대기 (5초)
         cur.execute("PRAGMA busy_timeout=5000;")
-        
+
         # fsync 강도 조절로 성능/안정 타협
         cur.execute("PRAGMA synchronous=NORMAL;")
-        
+
         # 테이블 생성
         cur.execute(
             """
@@ -432,13 +421,13 @@ class ScanCache:
     def close(self) -> None:
         if self.conn:
             self.conn.close()
-    
+
     def __enter__(self):
         return self
-    
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
-    
+
     def __del__(self):
         self.close()
 
@@ -448,22 +437,20 @@ class ScanCache:
 # ---------------------------------------------------------------------------
 
 
-@dataclass
-class RuleBucket:
+class RuleBucket(LogiBaseModel):
     """KR: 버킷 규칙. EN: Configuration for a single bucket."""
 
     name: str
-    exts: List[str] = field(default_factory=list)
-    name_keywords: List[str] = field(default_factory=list)
-    dir_keywords: List[str] = field(default_factory=list)
-    title_keywords: List[str] = field(default_factory=list)
-    imports: List[str] = field(default_factory=list)
-    code_hints: List[str] = field(default_factory=list)
-    mimetypes: List[str] = field(default_factory=list)
+    exts: List[str] = Field(default_factory=list)
+    name_keywords: List[str] = Field(default_factory=list)
+    dir_keywords: List[str] = Field(default_factory=list)
+    title_keywords: List[str] = Field(default_factory=list)
+    imports: List[str] = Field(default_factory=list)
+    code_hints: List[str] = Field(default_factory=list)
+    mimetypes: List[str] = Field(default_factory=list)
 
 
-@dataclass
-class RuleWeights:
+class RuleWeights(LogiBaseModel):
     """KR: 가중치. EN: Weighting for rule scoring."""
 
     name: float = 4.0
@@ -1315,6 +1302,23 @@ def rollback(journal: str) -> None:
             shutil.move(dst, src)
             restored += 1
     click.echo(f"[rollback] restored={restored}")
+
+
+@cli.command(name="logistics-validate")
+@click.option(
+    "--payload",
+    type=click.Path(path_type=Path),
+    required=True,
+    help="물류 데이터 JSON 경로 (KR/EN)",
+)
+def logistics_validate(payload: Path) -> None:
+    """KR: 물류 데이터 정합성 검증. EN: Validate logistics payload."""
+
+    raw = payload.read_text(encoding="utf-8")
+    parsed = json.loads(raw)
+    records_data = parsed if isinstance(parsed, list) else [parsed]
+    summaries = [LogisticsMetadata(**record).summary() for record in records_data]
+    click.echo(json.dumps(summaries, ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":

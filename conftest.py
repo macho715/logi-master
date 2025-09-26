@@ -1,4 +1,7 @@
-# tests/conftest.py
+"""KR: 테스트 워크스페이스 픽스처. EN: Pytest workspace fixture."""
+
+from __future__ import annotations
+
 import shutil
 from pathlib import Path
 
@@ -7,11 +10,8 @@ import pytest
 
 @pytest.fixture
 def tmp_workspace(tmp_path: Path) -> Path:
-    r"""
-    임시 워크스페이스:
-      src_roots: C:\\HVDC PJT, C:\\cursor-mcp (유사 구조)
-      target: C:\\PROJECTS_STRUCT (테스트용 tmp 경로)
-    """
+    """임시 워크스페이스를 구성한다(KR). Provision a temporary workspace for tests (EN)."""
+
     ws = tmp_path / "ws"
     (ws / "C_HVDC_PJT").mkdir(parents=True)
     (ws / "C_cursor_mcp").mkdir(parents=True)
@@ -27,6 +27,18 @@ def tmp_workspace(tmp_path: Path) -> Path:
     (ws / "C_HVDC_PJT" / "dup.txt").write_text("B\n", encoding="utf-8")
     repo_root = Path(__file__).resolve().parent
     shutil.copy2(repo_root / "devmind.py", ws / "devmind.py")
+    package_root = repo_root / "logi"
+    if package_root.exists():
+        shutil.copytree(package_root, ws / "logi", dirs_exist_ok=True)
+    resources_root = repo_root / "resources"
+    if resources_root.exists():
+        shutil.copytree(resources_root, ws / "resources", dirs_exist_ok=True)
+    fixtures_root = repo_root / "tests" / "fixtures"
+    if fixtures_root.exists():
+        shutil.copytree(fixtures_root, ws / "fixtures", dirs_exist_ok=True)
+    sitecustomize_path = repo_root / "sitecustomize.py"
+    if sitecustomize_path.exists():
+        shutil.copy2(sitecustomize_path, ws / "sitecustomize.py")
     for template in ("rules.yml", "schema.yml", "agents.json"):
         template_path = repo_root / template
         if template_path.exists():
