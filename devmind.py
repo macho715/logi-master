@@ -373,16 +373,16 @@ class ScanCache:
         # SQLite 잠금 문제 해결: WAL 모드 + timeout + busy_timeout
         self.conn = sqlite3.connect(str(db_path), timeout=30.0)
         cur = self.conn.cursor()
-        
+
         # WAL 모드 설정: 읽기(다수) + 쓰기(1) 동시 허용, 잠금 충돌 감소
         cur.execute("PRAGMA journal_mode=WAL;")
-        
+
         # Busy 핸들러: 잠금 시 재시도 대기 (5초)
         cur.execute("PRAGMA busy_timeout=5000;")
-        
+
         # fsync 강도 조절로 성능/안정 타협
         cur.execute("PRAGMA synchronous=NORMAL;")
-        
+
         # 테이블 생성
         cur.execute(
             """
@@ -421,13 +421,13 @@ class ScanCache:
     def close(self) -> None:
         if self.conn:
             self.conn.close()
-    
+
     def __enter__(self):
         return self
-    
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
-    
+
     def __del__(self):
         self.close()
 
