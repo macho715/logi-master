@@ -1,0 +1,88 @@
+{
+  "projects": [
+    {
+      "project_id": "hvdc_mcp_cursor",
+      "project_label": "hvdc_mcp_cursor",
+      "doc_ids": [
+        "C:\\MACHO GPT\\agents.json",
+        "C:\\MACHO GPT\\Cursor-AI_실행_가이드.MD",
+        "C:\\MACHO GPT\\README.MD",
+        "C:\\MACHO GPT\\rules.yml"
+      ],
+      "role_bucket_map": {},
+      "confidence": 0.704112124006657,
+      "reasons": [
+        "tfidf_kmeans"
+      ]
+    },
+    {
+      "project_id": "hvdc_mcp_cursor",
+      "project_label": "hvdc_mcp_cursor",
+      "doc_ids": [
+        "C:\\MACHO GPT\\conftest.py",
+        "C:\\MACHO GPT\\devmind.py",
+        "C:\\MACHO GPT\\test_rollback.py",
+        "C:\\MACHO GPT\\test_rules.py",
+        "C:\\MACHO GPT\\test_versioning.py"
+      ],
+      "role_bucket_map": {},
+      "confidence": 0.5561616726653009,
+      "reasons": [
+        "tfidf_kmeans"
+      ]
+    },
+    {
+      "project_id": "hvdc_mcp_cursor",
+      "project_label": "hvdc_mcp_cursor",
+      "doc_ids": [
+        "C:\\MACHO GPT\\PLAN.md",
+        "C:\\MACHO GPT\\schema.yml"
+      ],
+      "role_bucket_map": {},
+      "confidence": 0.5860982157784894,
+      "reasons": [
+        "tfidf_kmeans"
+      ]
+    },
+    {
+      "project_id": "git",
+      "project_label": "git",
+      "doc_ids": [
+        "C:\\MACHO GPT\\.git\\config",
+        "C:\\MACHO GPT\\.git\\description",
+        "C:\\MACHO GPT\\.git\\HEAD",
+        "C:\\MACHO GPT\\.git\\hooks\\fsmonitor-watchman.sample",
+        "C:\\MACHO GPT\\.git\\hooks\\pre-commit.sample",
+        "C:\\MACHO GPT\\.git\\hooks\\pre-push.sample",
+        "C:\\MACHO GPT\\.git\\hooks\\pre-rebase.sample",
+        "C:\\MACHO GPT\\.git\\hooks\\prepare-commit-msg.sample",
+        "C:\\MACHO GPT\\.git\\hooks\\push-to-checkout.sample",
+        "C:\\MACHO GPT\\.git\\hooks\\sendemail-validate.sample",
+        "C:\\MACHO GPT\\.git\\hooks\\update.sample",
+        "C:\\MACHO GPT\\.git\\info\\exclude"
+      ],
+      "role_bucket_map": {},
+      "confidence": 0.5,
+      "reasons": [
+        "tfidf_kmeans"
+      ]
+    },
+    {
+      "project_id": "scripts",
+      "project_label": "scripts",
+      "doc_ids": [
+        "C:\\MACHO GPT\\.git\\hooks\\applypatch-msg.sample",
+        "C:\\MACHO GPT\\.git\\hooks\\commit-msg.sample",
+        "C:\\MACHO GPT\\.git\\hooks\\post-update.sample",
+        "C:\\MACHO GPT\\.git\\hooks\\pre-applypatch.sample",
+        "C:\\MACHO GPT\\.git\\hooks\\pre-merge-commit.sample",
+        "C:\\MACHO GPT\\.git\\hooks\\pre-receive.sample"
+      ],
+      "role_bucket_map": {},
+      "confidence": 0.5,
+      "reasons": [
+        "tfidf_kmeans"
+      ]
+    }
+  ]
+}
