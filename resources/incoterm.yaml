@@ -1,0 +1,34 @@
+incoterms:
+  - code: EXW
+    name_en: Ex Works
+    name_ko: 공장인도조건
+  - code: FCA
+    name_en: Free Carrier
+    name_ko: 운송인인도조건
+  - code: FAS
+    name_en: Free Alongside Ship
+    name_ko: 선측인도조건
+  - code: FOB
+    name_en: Free On Board
+    name_ko: 본선인도조건
+  - code: CFR
+    name_en: Cost and Freight
+    name_ko: 운임포함인도조건
+  - code: CIF
+    name_en: Cost, Insurance and Freight
+    name_ko: 운임·보험료포함인도조건
+  - code: CPT
+    name_en: Carriage Paid To
+    name_ko: 운송비지급인도조건
+  - code: CIP
+    name_en: Carriage and Insurance Paid To
+    name_ko: 운송비·보험료지급인도조건
+  - code: DAP
+    name_en: Delivered At Place
+    name_ko: 목적지인도조건
+  - code: DPU
+    name_en: Delivered at Place Unloaded
+    name_ko: 양하장소인도조건
+  - code: DDP
+    name_en: Delivered Duty Paid
+    name_ko: 관세지급인도조건
