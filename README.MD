@@ -64,6 +64,16 @@ pytest -q
 * 장기 운용 시 콘텐츠 해시(blake3) 기반 stable id로 확장 권장.
 * 대규모(10k+) 처리 시 해시/IO 병렬화 옵션 검토.
 
+### 9) 물류 데이터 검증
+
+```bash
+python devmind.py logistics-validate --payload shipment.json
+```
+
+* `/resources/incoterm.yaml`·`resources/hs2022.csv` 기준으로 Incoterm/HS Code를 검증합니다.
+* 통화는 AED 기본값이며 `AED/USD/EUR/SAR`만 허용됩니다.
+* 금액은 항상 소수점 두 자리(`0.00`)로 반올림되어 출력됩니다.
+
 ---
 
 # Cursor-AI_실행_가이드.md
