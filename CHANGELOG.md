@@ -8,3 +8,4 @@
 
 ### Changed
 - Updated README with logistics validation command reference.
+- Refined clustering to derive project folder names from shared directories, guaranteeing project-isolated organization outputs.

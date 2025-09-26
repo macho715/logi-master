@@ -156,6 +156,32 @@ DEFAULT_HINTS = [
     "stow",
 ]
 
+SKIP_LABEL_SEGMENTS = {
+    "src",
+    "source",
+    "docs",
+    "documents",
+    "tests",
+    "test",
+    "data",
+    "images",
+    "image",
+    "reports",
+    "report",
+    "configs",
+    "config",
+    "tmp",
+    "temp",
+    "archive",
+    "notebooks",
+    "scripts",
+    "script",
+    "misc",
+    "project",
+    "projects",
+    "files",
+}
+
 
 def ensure_cache_dir() -> None:
     """KR: .cache 디렉토리를 만든다. EN: Ensure cache directory exists."""
@@ -567,6 +593,56 @@ def normalize_label(label: str) -> str:
     return cleaned or "misc"
 
 
+def split_path_segments(path: str) -> List[str]:
+    """경로를 세그먼트로 분리한다. Split a filesystem-like path into segments."""
+
+    tokens = re.split(r"[\\/]+", path)
+    segments: List[str] = []
+    for token in tokens:
+        candidate = token.strip()
+        if not candidate:
+            continue
+        if candidate.endswith(":"):
+            continue
+        if candidate in {"."}:
+            continue
+        segments.append(candidate)
+    return segments
+
+
+def longest_common_prefix(segments: List[List[str]]) -> List[str]:
+    """공통 접두 세그먼트를 구한다. Return the longest common prefix across segment lists."""
+
+    if not segments:
+        return []
+    prefix: List[str] = []
+    for group in zip(*segments):
+        first = group[0]
+        if all(item == first for item in group[1:]):
+            prefix.append(first)
+        else:
+            break
+    return prefix
+
+
+def derive_project_label(doc_ids: List[str], fallback: str) -> str:
+    """프로젝트 라벨을 추론한다. Derive a project label from document paths."""
+
+    segments = [split_path_segments(path) for path in doc_ids if path]
+    usable = [seg for seg in segments if seg]
+    if usable:
+        prefix = longest_common_prefix(usable)
+        for segment in reversed(prefix):
+            normalized = normalize_label(segment)
+            if normalized and normalized not in SKIP_LABEL_SEGMENTS:
+                return normalized
+        flattened = [normalize_label(part) for seq in usable for part in seq]
+        counts = Counter(part for part in flattened if part and part not in SKIP_LABEL_SEGMENTS)
+        if counts:
+            return counts.most_common(1)[0][0]
+    return normalize_label(fallback)
+
+
 def simple_cluster(items: Sequence[Dict[str, Any]], hints: Sequence[str]) -> Dict[str, Any]:
     """KR: 모듈 없이 실행되는 단순 군집화. EN: Lightweight cluster fallback."""
 
@@ -693,14 +769,19 @@ def local_cluster(items: Sequence[Dict[str, Any]], hints: Sequence[str]) -> Dict
             if bucket in representative_text and bucket not in candidate_keywords:
                 candidate_keywords.append(bucket)
 
-        parent_name = Path(doc_ids[0]).parent.name
-        label = normalize_label("_".join(candidate_keywords[:3]) or parent_name)
+        hint_seed = "_".join(candidate_keywords[:3])
+        fallback_label = hint_seed or doc_ids[0]
+        label = derive_project_label(doc_ids, fallback_label)
         confidence = 0.5
         if submatrix.size:
             confidence = float(submatrix.mean())
             confidence = max(0.5, min(0.95, confidence))
 
         bucket_counts = Counter(items[i].get("bucket", "tmp") for i in indices)
+        reasons = ["tfidf_kmeans" if n_docs > 20 else "tfidf_dbscan", "path_prefix"]
+        if hint_seed:
+            reasons.append("hint_keywords")
+
         projects.append(
             {
                 "project_id": label,
@@ -708,17 +789,96 @@ def local_cluster(items: Sequence[Dict[str, Any]], hints: Sequence[str]) -> Dict
                 "doc_ids": doc_ids,
                 "role_bucket_map": dict(bucket_counts),
                 "confidence": confidence,
-                "reasons": ["tfidf_local" if n_docs > 20 else "tfidf_compact"],
+                "reasons": reasons,
             }
         )
 
     return {"projects": projects}
 
 
-def gpt_cluster(_: Sequence[Dict[str, Any]], **__: Any) -> Dict[str, Any]:  # pragma: no cover
-    """KR: GPT 미구현 경고. EN: Placeholder GPT clustering (fallback)."""
+def gpt_cluster(
+    items: Sequence[Dict[str, Any]], safe_map_path: str, model_env_var: str = "OPENAI_API_KEY"
+) -> Dict[str, Any]:
+    """KR: GPT 기반 프로젝트 군집화. EN: GPT-powered project clustering."""
 
-    raise RuntimeError("GPT clustering requires external integration; use --project-mode local")
+    import urllib.request
+    import urllib.parse
+
+    api_key = os.environ.get(model_env_var)
+    if not api_key:
+        raise RuntimeError(f"Environment variable {model_env_var} not set")
+
+    def build_gpt_payload(items: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
+        safe_map = json.load(open(safe_map_path, encoding="utf-8"))
+        safe_items = []
+        for it in items:
+            if "path" not in it:
+                continue
+            safe_id = sha256_string(it["path"])
+            safe_map[safe_id] = it["path"]
+            safe_items.append(
+                {
+                    "safe_id": safe_id,
+                    "name": it.get("name", ""),
+                    "bucket": it.get("bucket", ""),
+                    "hint": it.get("dir_hint", ""),
+                }
+            )
+        json.dump(
+            safe_map, open(safe_map_path, "w", encoding="utf-8"), ensure_ascii=False, indent=2
+        )
+        return {"items": safe_items}
+
+    payload = {
+        "model": "gpt-4o-mini",
+        "messages": [
+            {
+                "role": "system",
+                "content": "Group files into projects. Return JSON with projects array containing project_id, project_label, doc_ids (safe_id list), role_bucket_map, confidence, reasons.",
+            },
+            {"role": "user", "content": json.dumps(build_gpt_payload(items), ensure_ascii=False)},
+        ],
+        "response_format": {"type": "json_object"},
+        "temperature": 0.2,
+    }
+
+    req = urllib.request.Request(
+        "https://api.openai.com/v1/chat/completions",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"},
+    )
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        out = json.loads(resp.read().decode("utf-8"))
+
+    content = out["choices"][0]["message"]["content"]
+    data = json.loads(content)  # {"projects":[{..., "doc_ids":[safe_id,...]}]}
+
+    # ★ 여기서 safe_id → path 역매핑
+    safe_map = json.load(open(safe_map_path, encoding="utf-8"))
+    projects = []
+    for p in data.get("projects", []):
+        ids = p.get("doc_ids", [])
+        paths = [safe_map.get(i) for i in ids if i in safe_map]  # 없는 id는 드롭
+        if not paths:
+            continue
+        raw_seed = p.get("project_label") or p.get("project_id") or "misc"
+        label = derive_project_label(paths, raw_seed)
+        normalized_seed = normalize_label(raw_seed)
+        reasons = list(p.get("reasons", []))
+        if label != normalized_seed:
+            reasons.append("path_prefix")
+        reasons.append("mapped_via_safe_map")
+        projects.append(
+            {
+                "project_id": label,
+                "project_label": label,
+                "doc_ids": paths,  # ← organize가 기대하는 "path" 리스트로 변환 완료
+                "role_bucket_map": p.get("role_bucket_map", {}),
+                "confidence": float(p.get("confidence", 0.7)),
+                "reasons": reasons,
+            }
+        )
+    return {"projects": projects}
 
 
 # ---------------------------------------------------------------------------
