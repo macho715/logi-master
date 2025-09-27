@@ -1,0 +1,227 @@
+name: MACHO-GPT CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # 매일 오전 2시에 실행 (정기 테스트)
+    - cron: '0 2 * * *'
+
+env:
+  PYTHON_VERSION: '3.13'
+  PYTHONUTF8: 1
+
+jobs:
+  test:
+    name: Test Suite
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12', '3.13']
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+        
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+          
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov pytest-xdist flake8 mypy black
+        
+    - name: Lint with flake8
+      run: |
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=100 --statistics
+        
+    - name: Type check with mypy
+      run: |
+        mypy . --ignore-missing-imports --no-strict-optional
+        
+    - name: Format check with black
+      run: |
+        black --check --diff .
+        
+    - name: Run tests with pytest
+      run: |
+        pytest -v --cov=. --cov-report=xml --cov-report=html --junitxml=test-results.xml
+        
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+        
+    - name: Upload test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: test-results-${{ matrix.python-version }}
+        path: |
+          test-results.xml
+          htmlcov/
+          
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        
+    - name: Install security tools
+      run: |
+        pip install bandit safety semgrep
+        
+    - name: Run bandit security scan
+      run: |
+        bandit -r . -f json -o bandit-report.json || true
+        
+    - name: Run safety check
+      run: |
+        safety check --json --output safety-report.json || true
+        
+    - name: Run semgrep scan
+      run: |
+        semgrep --config=auto --json --output=semgrep-report.json . || true
+        
+    - name: Upload security reports
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: security-reports
+        path: |
+          bandit-report.json
+          safety-report.json
+          semgrep-report.json
+          
+  performance:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+        pip install pytest-benchmark memory-profiler
+        
+    - name: Run performance tests
+      run: |
+        pytest tests/test_performance.py -v --benchmark-only --benchmark-save=performance
+        
+    - name: Upload performance results
+      uses: actions/upload-artifact@v3
+      with:
+        name: performance-results
+        path: .benchmarks/
+        
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+        
+    - name: Create test directories
+      run: |
+        mkdir -p test_data/C_HVDC_PJT
+        mkdir -p test_data/C_cursor_mcp
+        echo "# Test HVDC Project" > test_data/C_HVDC_PJT/README.md
+        echo "print('test')" > test_data/C_cursor_mcp/test.py
+        
+    - name: Run integration tests
+      run: |
+        python devmind.py scan --paths test_data/C_HVDC_PJT --paths test_data/C_cursor_mcp --emit .cache/scan.json --safe-map .cache/safe_map.json
+        python devmind.py rules --scan .cache/scan.json --emit .cache/scores.json
+        python devmind.py cluster --scores .cache/scores.json --emit .cache/projects.json --project-mode local
+        python devmind.py organize --projects .cache/projects.json --scores .cache/scores.json --target test_output --mode move --conflict version --journal .cache/journal.jsonl
+        python devmind.py report --journal .cache/journal.jsonl --out reports/test_summary.html
+        
+    - name: Verify integration results
+      run: |
+        test -f .cache/scan.json
+        test -f .cache/scores.json
+        test -f .cache/projects.json
+        test -f .cache/journal.jsonl
+        test -f reports/test_summary.html
+        test -d test_output
+        
+    - name: Upload integration results
+      uses: actions/upload-artifact@v3
+      with:
+        name: integration-results
+        path: |
+          .cache/
+          reports/
+          test_output/
+          
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    needs: [test, security, performance, integration]
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        
+    - name: Install build tools
+      run: |
+        pip install build twine
+        
+    - name: Build package
+      run: |
+        python -m build
+        
+    - name: Upload to PyPI (if tagged)
+      if: startsWith(github.ref, 'refs/tags/')
+      run: |
+        twine upload dist/*
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
