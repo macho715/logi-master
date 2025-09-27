@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 ### Added
+- structural: Introduced `core/` helper modules and `cli/` entrypoints for Devmind.
+- behavioral: Added Streamlit dashboard component layer with validation helpers.
+- test: Added unit coverage for pipeline and IO helpers to lift coverage over 70%.
 - Logistics validation toolkit with Incoterm/HS Code/AED checks and CLI support.
 - psutil fallback shim via `sitecustomize.py` for deterministic memory tests.
 - Documentation in Korean and English covering logistics validation flows.

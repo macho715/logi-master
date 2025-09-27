@@ -78,15 +78,20 @@ python devmind.py scan --paths "C:\YourProject" --emit .cache/scan.json
 # 2단계: 규칙 적용 및 분류
 python devmind.py rules --scan .cache/scan.json --emit .cache/scores.json
 
-# 3단계: 프로젝트 군집화 (로컬 모드)
+# 3단계: 프로젝트 군집화
 python devmind.py cluster --scores .cache/scores.json --emit .cache/projects.json --project-mode local
 
-# 4단계: 파일 정리
-python devmind.py organize --projects .cache/projects.json --scores .cache/scores.json --target "C:\PROJECTS_STRUCT" --mode move
+# 4단계: 구조 정리 및 저널 기록
+python devmind.py organize --projects .cache/projects.json --target PROJECTS_STRUCT --journal .cache/journal.jsonl
 
 # 5단계: 리포트 생성
-python devmind.py report --journal .cache/journal.jsonl --out reports/summary.html
+python devmind.py report --journal .cache/journal.jsonl --out reports/pipeline.html
+
+# 통합 실행 (모드/스텝 지정)
+python devmind.py run --mode local --steps scan,rules,cluster,organize,report
 ```
+
+> 📌 모든 수치 출력은 `format_2d` 헬퍼로 두 자리 소수(예: `1250.50`)가 보장됩니다. 로그 타임스탬프는 Asia/Dubai 기준입니다.
 
 ---
 
