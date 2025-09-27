@@ -1,0 +1,292 @@
+[
+  {
+    "path": "C:\\MACHO GPT\\agents.json",
+    "safe_id": "84e3f203ac58f98b643c73ee1b8cfdf9ab0651db529b2cd3c9123cb1456addad",
+    "name": "agents.json",
+    "ext": ".json",
+    "size": 1234,
+    "mtime": 1758903271,
+    "hint": "{\r\n    \"version\": 1,\r\n    \"agents\": [\r\n      {\r\n        \"name\": \"프로젝트_자동정리_바로이동\",\r\n        \"description\": \"C:\\\\\\\\HVDC PJT 와 C:\\\\\\\\cursor-mcp 를 프로젝트 단위로 묶어 표준 스키마로 즉시 이동하고 리포트까지 생성\",\r\n        \"workingDirectory\": \"${workspaceRoot}\",\r\n        \"env\": { \"PYTHONUTF8\": \"1\" },\r\n        \"steps\": [\r\n          { \"run\": \"python devmind.py scan --paths \\\"C:\\\\\\\\HVDC PJT\\\" --paths \\\"C:\\\\\\\\cursor-mcp\\\" --emit .cache/scan.json --safe-map .cache/safe_map.json\" },\r\n          { \"run\": \"python devmind.py rules --scan .cache/scan.json --emit .cache/scores.json\" },\r\n          { \"run\": \"python devmind.py cluster --scores .cache/scores.json --emit .cache/projects.json --project-mode gpt --safe-map .cache/safe_map.json\" },\r\n  \r\n          { \"run\": \"python devmind.py organize --projects .cache/projects.json --scores .cache/scores.json --target \\\"C:\\\\\\\\PROJECTS_STRUCT\\\" --mode move --conflict version --journal .cache/journal.jsonl\" },\r\n          { \"run\": \"python devmind.py report --journal .cache/journal.jsonl --out reports/projects_summary.html\" },\r\n          { \"openFile\": \"reports/projects_summary.html\" }\r\n        ],\r\n        \"timeout\": 0\r\n      }\r\n    ]\r\n  }",
+    "bucket": "reports"
+  },
+  {
+    "path": "C:\\MACHO GPT\\conftest.py",
+    "safe_id": "a542a2f3d1f92c6e5a0eb345b3c0d37b0cbed0cc1ab9d892e564313da90cee62",
+    "name": "conftest.py",
+    "ext": ".py",
+    "size": 1183,
+    "mtime": 1758902697,
+    "hint": "# tests/conftest.py\r\nimport os\r\nimport shutil\r\nfrom pathlib import Path\r\nimport pytest\r\n\r\n@pytest.fixture\r\ndef tmp_workspace(tmp_path):\r\n    \"\"\"\r\n    임시 워크스페이스:\r\n      src_roots: C:\\HVDC PJT, C:\\cursor-mcp (유사 구조)\r\n      target: C:\\PROJECTS_STRUCT (테스트용 tmp 경로)\r\n    \"\"\"\r\n    ws = tmp_path / \"ws\"\r\n    (ws / \"C_HVDC_PJT\").mkdir(parents=True)\r\n    (ws / \"C_cursor_mcp\").mkdir(parents=True)\r\n    (ws / \"PROJECTS_STRUCT\").mkdir(parents=True)\r\n    # 샘플 파일\r\n    (ws / \"C_HVDC_PJT\" / \"README.md\").write_text(\"# INSTALLATION GUIDE\\n\", encoding=\"utf-8\")\r\n    (ws / \"C_HVDC_PJT\" / \"run_job.ps1\").write_text(\"Write-Host 'run'\\n\", encoding=\"utf-8\")\r\n    (ws / \"C_HVDC_PJT\" / \"analysis_report.txt\").write_text(\"final report\\n\", encoding=\"utf-8\")\r\n    (ws / \"C_cursor_mcp\" / \"tool.py\").write_text(\"print('tool')\\n\", encoding=\"utf-8\")\r\n    (ws / \"C_cursor_mcp\" / \"test_sample.py\").write_text(\"import pytest\\n\", encoding=\"utf-8\")\r\n    # 동일 이름 다른 내용(중복 보존 확인용)\r\n    (ws / \"C_cursor_mcp\" / \"dup.txt\").write_text(\"A\\n\", encoding=\"utf-8\")\r\n    (ws / \"C_HVDC_PJT\" / \"dup.txt\").write_text(\"B\\n\", encoding=\"utf-8\")\r\n    return ws\r\n",
+    "bucket": "scripts"
+  },
+  {
+    "path": "C:\\MACHO GPT\\Cursor-AI_실행_가이드.MD",
+    "safe_id": "ed1b9953cacf806c92cf946cf1f384961da06d19e95c6e59ef41a72da639aae8",
+    "name": "Cursor-AI_실행_가이드.MD",
+    "ext": ".md",
+    "size": 2343,
+    "mtime": 1758902570,
+    "hint": "# Cursor-AI_실행_가이드.md\r\n\r\n## 목적\r\n\r\nCursor에서 **한 번 클릭**으로 전체 파이프라인 실행. 사용자 입력 없이 자동 실행 → HTML 리포트 오픈.\r\n\r\n## 준비\r\n\r\n1. 워크스페이스 루트에 파일 배치:\r\n\r\n```\r\ndevmind.py\r\ntests/...\r\n.cursor/agents.json\r\nrules.yml (선택)\r\nschema.yml (선택)\r\n```\r\n\r\n2. Python venv + 의존성 설치 완료.\r\n\r\n## Agent JSON\r\n\r\n`.cursor/agents.json`\r\n\r\n```json\r\n{\r\n  \"version\": 1,\r\n  \"agents\": [\r\n    {\r\n      \"name\": \"프로젝트_자동정리_바로이동\",\r\n      \"description\": \"C:\\\\\\\\HVDC PJT 와 C:\\\\\\\\cursor-mcp 를 프로젝트 단위로 묶어 표준 스키마로 즉시 이동하고 리포트까지 생성\",\r\n      \"workingDirectory\": \"${workspaceRoot}\",\r\n      \"env\": { \"PYTHONUTF8\": \"1\" },\r\n      \"steps\": [\r\n        { \"run\": \"python devmind.py scan --paths \\\"C:\\\\\\\\HVDC PJT\\\" --paths \\\"C:\\\\\\\\cursor-mcp\\\" --emit .cache/scan.json --safe-map .cache/safe_map.json\" },\r\n        { \"run\": \"python devmind.py rules --scan .cache/scan.json --emit .cache/scores.json\" },\r\n        { \"run\": \"python devmind.py cluster --scores .cache/scores.json --emit .cache/projects.json --project-mode local\" },\r\n        { \"run\": \"python devmind.py organize --projects .cache/projects.json --scores .cache/scores.json --target \\\"C:\\\\\\\\PROJECTS_STRUCT\\\" --mode move --conflict version --journal .cache/journal.jsonl\" },\r\n        { \"run\": \"python devmind.py report --journal .cache/journal.jsonl --out reports/projects_summary.html\" },\r\n        { \"openFile\": \"reports/projects_summary.html\" }\r\n      ],\r\n      \"timeout\": 0\r\n    }\r\n  ]\r\n}\r\n```\r\n\r\n### GPT 모드로 돌리고 싶으면\r\n\r\n```json\r\n{ \"run\": \"python devmind.py cluster --scores .cache/scores.json --emit .cache/projects.json --project-mode gpt --safe-map .cache/safe_map.json\" }\r\n```\r\n\r\n* 환경변수: `OPENAI_API_KEY`를 Cursor에서 주입하거나 OS에 설정.\r\n\r\n## 실행\r\n\r\n* Cursor 좌측 **Agents** 패널 → `프로젝트_자동정리_바로이동` 클릭 → Run\r\n* 완료되면 `reports/projects_summary.html` 자동 오픈\r\n\r\n## 운영 팁\r\n\r\n* 첫 실행 전 **백업 권장**(move 정책).\r\n* 문제 발생 시 `rollback --journal`로 원복.\r\n* `rules.yml`/`schema.yml` 수정으로 도메인 최적화 가능.\r\n* GPT 비용 절약: 첫 군집만 gpt, 이후엔 local 유지(캐시 전략).\r\n\r\n\r\n",
+    "bucket": "reports"
+  },
+  {
+    "path": "C:\\MACHO GPT\\devmind.py",
+    "safe_id": "9ccba908fe3e7a7783e85bb5cb26ea9d86ebea25696ffb5d26154aa3cc55bde4",
+    "name": "devmind.py",
+    "ext": ".py",
+    "size": 18641,
+    "mtime": 1758903266,
+    "hint": "# devmind.py\r\nimport hashlib, json, os, re, shutil, sys, time\r\nfrom pathlib import Path\r\nimport click\r\n\r\nTARGET_ROOT = Path(\"C:/PROJECTS_STRUCT\")\r\n\r\ndef blake7(p: Path) -> str:\r\n    import blake3\r\n    h = blake3.blake3()\r\n    with open(p, \"rb\") as f:\r\n        for chunk in iter(lambda: f.read(1024*1024), b\"\"):\r\n            h.update(chunk)\r\n    return h.hexdigest()[:7]\r\n\r\ndef safe_mkdir(p: Path):\r\n    p.mkdir(parents=True, exist_ok=True)\r\n\r\ndef mask_path(s: str) -> str:\r\n    return re.sub(r\"[A-Za-z]:\\\\\\\\[^\\\\n]+\", \"<MASK>\", s.replace(\"/\", \"\\\\\\\\\"))\r\n\r\ndef now_ms() -> int:\r\n    return int(time.time() * 1000)\r\n\r\ndef sha256_str(s: str) -> str:\r\n    h = hashlib.sha256()\r\n    h.update(s.encode(\"utf-8\", errors=\"ignore\"))\r\n    return h.hexdigest()\r\n\r\n# ---------- scan ----------\r\n@click.group()\r\ndef cli():\r\n    pass\r\n\r\n@cli.command()\r\n@click.option(\"--paths\", multiple=True, required=True)\r\n@click.option(\"--sample-bytes\", default=4096, show_default=True)\r\n@click.option(\"--emit\", default=\".cache/scan.json\", show_default=True)\r\n@click.option(\"--safe-map\", \"safe_map_path\", default=\".cache/safe_map.json\", show_default=True)\r\ndef scan(paths, sample_bytes, emit, safe_map_path):\r\n    items = []\r\n    safe_map = {}  # {safe_id: path}\r\n    for root in paths:\r\n        for dp, _, files in os.walk(root):\r\n            for fn in files:\r\n                p = Path(dp) / fn\r\n                try:\r\n                    st = p.stat()\r\n                    safe_id = sha256_str(str(p))\r\n                    rec = {\r\n                        \"path\": str(p),\r\n                        \"safe_id\": safe_id,         # ★ 추가\r\n                        \"name\": fn,\r\n                        \"ext\": p.suffix.lower(),\r\n                        \"size\": st.st_size,\r\n                        \"mtime\": int(st.st_mtime),\r\n                    }\r\n                    # 가벼운 내용 힌트 (텍스트만)\r\n                    try:\r\n                        with open(p, \"rb\") as f:\r\n                            head = f.read(sample_bytes)\r\n                        rec[\"hint\"] = head.decode(\"utf-8\", errors=\"ignore\")\r\n                    except Exception:\r\n                        rec[\"hint\"] = \"\"\r\n                    items.append(rec)\r\n                    safe_map[safe_id] = str(p)    # ★ 추가\r\n                except Exception as e:\r\n                    items.append({\"path\": str(p), \"error\": str(e)})\r\n    Path(\".cache\").mkdir(exist_ok=True)\r\n    with open(emit, \"w\", encoding=\"utf-8\") as f:\r\n        json.dump(items, f, ensure_ascii=False, indent=2)\r\n    \r\n    with open(safe_map_path, \"w\", encoding=\"utf-8\") as f:   # ★ 추가\r\n        json.dump(safe_map, f, ensure_ascii=False, indent=2)\r\n    \r\n    click.echo(f\"[scan] {len(items)} items -> {emit} ; safe_map -> {safe_map_path}\")\r\n\r\n# ---------- rules (아주 얕은 규칙) ----------\r\nRULES = [\r\n    (\"src\",      r\"\\.py$\"),\r\n    (\"scripts\",  r\"\\.ps1$|\\.bat$|run_|setup|install\"),\r\n    (\"tests\",    r\"(^|\\\\)tests?(\\\\|/)|\\bpytest\\b|\\bunittest\\b\"),\r\n    (\"docs\",     r\"\\.md$|README|GUIDE|INSTALLATION|PLAN|SPEC|TDD\"),\r\n    (\"reports\",  r\"report|summary|analysis|final|complete\"),\r\n    (\"configs\",  r\"\\.ya?ml$|\\.toml$|\\.ini$|pyproject|requirements|\\.env$|\\.json$|\\.cfg$\"),\r\n    (\"data\",     r\"\\.csv$|\\.xlsx$|\\.xls$|\\.parquet$|(\\\\|/)data(\\\\|/)\"),\r\n    (\"notebooks\",r\"\\.ipynb$\"),\r\n    (\"archive\",  r\"old|backup|_bak|_copy|v\\d+\"),\r\n]\r\n\r\ndef bucket_of(name: str, path: str, hint: str) -> str:\r\n    text = f\"{name} {path} {hint}\".lower()[:8000]\r\n    for b, pat in RULES:\r\n        if re.search(pat, text, re.I):\r\n            return b\r\n    return \"tmp\"\r\n\r\n@cli.command()\r\n@click.option(\"--scan\", \"scan_path\", default=\".cache/scan.json\")\r\n@click.option(\"--emit\", default=\".cache/scores.json\")\r\ndef rules(scan_path, emit):\r\n    items = json.load(open(scan_path, encoding=\"utf-8\"))\r\n    for it in items:\r\n        if \"error\" in it: \r\n            it[\"bucket\"] = \"archive\"\r\n            continue\r\n        it[\"bucket\"] = bucket_of(it[\"name\"], it[\"path\"], it.get(\"hint\",\"\"))\r\n    json.dump(items, open(emit,\"w\",encoding=\"utf-8\"), ensure_ascii=False, indent=2)\r\n    click.echo(f\"[",
+    "bucket": "scripts"
+  },
+  {
+    "path": "C:\\MACHO GPT\\PLAN.md",
+    "safe_id": "70f40485f092567d84610c706c8fa59cadcfbed3628d6bfcb5d5c8d0cefa4c44",
+    "name": "PLAN.md",
+    "ext": ".md",
+    "size": 7507,
+    "mtime": 1758902535,
+    "hint": "# PLAN.md\r\n\r\n## 프로젝트: Project Autosort (C:\\HVDC PJT + C:\\cursor-mcp → 표준 스키마 자동 정리)\r\n\r\n### 목표\r\n\r\n* 두 루트를 스캔하여 **프로젝트 단위 군집(local|gpt)** 후, `{TARGET}/{project}/…` 표준 스키마로 **즉시 이동(move)**.\r\n* **중복 파일 전부 보존**: `__{hash7}` 서픽스로 버전 부여.\r\n* **완전 추적/복구**: JSONL 저널 + HTML 리포트 + `rollback`.\r\n\r\n### 원칙\r\n\r\n* **TDD (Red → Green → Refactor)**: 최소 테스트 1개씩 쪼개 진행.\r\n* **Tidy First**: 구조 변경과 행위 변경을 분리(커밋 단위도 분리).\r\n* **보안**: 외부 전송은 메타/샘플/안전ID만. 경로/PII 마스킹.\r\n\r\n### 아키텍처\r\n\r\n1. `scan`\r\n\r\n   * 메타 추출: `path, name, ext, size, mtime, hint(≤4KB)`\r\n   * `safe_id=sha256(path)` 생성 → `.cache/safe_map.json` 저장\r\n2. `rules`\r\n\r\n   * 경량 규칙으로 1차 버킷(`src, scripts, tests, …`) 태깅\r\n3. `cluster --project-mode local|gpt`\r\n\r\n   * **local**: TF-IDF(+힌트 가중) → KMeans/DBSCAN → 라벨링\r\n   * **gpt**: `safe_id` 기반 메타만 전송 → `doc_ids(safe_id)` 수신 → **safe_map 역매핑으로 path 복원**\r\n4. `organize`\r\n\r\n   * 표준 스키마 생성 → **move** 수행, 충돌=**version**\r\n   * `journal.jsonl`에 전 과정 기록\r\n5. `report`\r\n\r\n   * HTML 대시보드(다크 테마), 분포/에러/요약\r\n6. `rollback`\r\n\r\n   * 저널 역연산으로 원위치\r\n\r\n### 표준 스키마\r\n\r\n```\r\nsrc/core/  src/utils/  src/pipelines/\r\nscripts/\r\ntests/unit/  tests/integration/\r\ndocs/  reports/  configs/\r\ndata/raw/  data/interim/  data/processed/\r\nnotebooks/\r\narchive/  tmp/\r\n```\r\n\r\n### TDD 계획 (스프린트 단위)\r\n\r\n* **S1 (기본 흐름)**\r\n\r\n  * [RED] scan이 기본 메타를 수집한다\r\n  * [GREEN] rules가 주요 버킷을 지정한다\r\n  * [GREEN] cluster(local)가 최소 2개 이상으로 그룹 나눈다\r\n* **S2 (조직 + 버전 보존)**\r\n\r\n  * [RED] organize가 중복 이름 파일을 2개 모두 보존한다\r\n  * [GREEN] `__{hash7}` 적용 확인\r\n* **S3 (롤백/리포트)**\r\n\r\n  * [RED] rollback이 이동 파일을 되돌린다\r\n  * [GREEN] report가 HTML 생성한다\r\n* **S4 (gpt + safe_map)**\r\n\r\n  * [RED] gpt 모드에서 `safe_id→path` 역매핑이 정확하다(모킹)\r\n  * [GREEN] 실패 시 local fallback\r\n* **Refactor**\r\n\r\n  * 규칙 외부화(rules.yml), 스키마 외부화(schema.yml), 병렬화\r\n\r\n### Done 기준\r\n\r\n* `pytest -q` 전부 통과\r\n* `python devmind.py …` E2E 동작, `C:\\PROJECTS_STRUCT`에 구조 생성\r\n* 리포트 생성 + 롤백 정상 동작\r\n* Cursor Agent **원클릭 운영**\r\n\r\n---\r\n\r\n# README.md\r\n\r\n## Project Autosort\r\n\r\n**두 루트**: `C:\\HVDC PJT`, `C:\\cursor-mcp`\r\n**타깃**: `C:\\PROJECTS_STRUCT`\r\n**정책**: **바로 이동(move)** · **중복 전부 보존(해시 서픽스)** · **완전 추적/복구**\r\n\r\n### 1) 설치\r\n\r\n```bash\r\npython -m venv .venv\r\n. .venv/Scripts/activate        # Windows\r\npip install click blake3 scikit-learn\r\npip install pytest              # 개발 시\r\n```\r\n\r\n### 2) 빠른 실행 (local 모드)\r\n\r\n```powershell\r\npython devmind.py scan --paths \"C:\\HVDC PJT\" --paths \"C:\\cursor-mcp\" --emit .cache\\scan.json --safe-map .cache\\safe_map.json\r\npython devmind.py rules --scan .cache\\scan.json --emit .cache\\scores.json\r\npython devmind.py cluster --scores .cache\\scores.json --emit .cache\\projects.json --project-mode local\r\npython devmind.py organize --projects .cache\\projects.json --scores .cache\\scores.json --target \"C:\\PROJECTS_STRUCT\" --mode move --conflict version --journal .cache\\journal.jsonl\r\npython devmind.py report --journal .cache\\journal.jsonl --out reports\\projects_summary.html\r\n```\r\n\r\n### 3) GPT 모드 (정확 매핑: safe_map.json)\r\n\r\n```powershell\r\n$env:OPENAI_API_KEY=\"sk-***\"\r\npython devmind.py cluster --scores .cache\\scores.json --emit .cache\\projects.json --project-mode gpt --safe-map .cache\\safe_map.json\r\n```\r\n\r\n> 외부 전송 데이터: `safe_id, name, ext, size, snippet(≤500), rule_tags, path_hint(마스킹)`만. **실경로/원문** 비전송.\r\n\r\n### 4) 롤백\r\n\r\n```pow",
+    "bucket": "scripts"
+  },
+  {
+    "path": "C:\\MACHO GPT\\README.MD",
+    "safe_id": "e653e0a93776f98142355331f6913fa62f3b10dbf44bbc348480b8a34c3ffdff",
+    "name": "README.MD",
+    "ext": ".md",
+    "size": 4870,
+    "mtime": 1758902547,
+    "hint": "# README.md\r\n\r\n## Project Autosort\r\n\r\n**두 루트**: `C:\\HVDC PJT`, `C:\\cursor-mcp`\r\n**타깃**: `C:\\PROJECTS_STRUCT`\r\n**정책**: **바로 이동(move)** · **중복 전부 보존(해시 서픽스)** · **완전 추적/복구**\r\n\r\n### 1) 설치\r\n\r\n```bash\r\npython -m venv .venv\r\n. .venv/Scripts/activate        # Windows\r\npip install click blake3 scikit-learn\r\npip install pytest              # 개발 시\r\n```\r\n\r\n### 2) 빠른 실행 (local 모드)\r\n\r\n```powershell\r\npython devmind.py scan --paths \"C:\\HVDC PJT\" --paths \"C:\\cursor-mcp\" --emit .cache\\scan.json --safe-map .cache\\safe_map.json\r\npython devmind.py rules --scan .cache\\scan.json --emit .cache\\scores.json\r\npython devmind.py cluster --scores .cache\\scores.json --emit .cache\\projects.json --project-mode local\r\npython devmind.py organize --projects .cache\\projects.json --scores .cache\\scores.json --target \"C:\\PROJECTS_STRUCT\" --mode move --conflict version --journal .cache\\journal.jsonl\r\npython devmind.py report --journal .cache\\journal.jsonl --out reports\\projects_summary.html\r\n```\r\n\r\n### 3) GPT 모드 (정확 매핑: safe_map.json)\r\n\r\n```powershell\r\n$env:OPENAI_API_KEY=\"sk-***\"\r\npython devmind.py cluster --scores .cache\\scores.json --emit .cache\\projects.json --project-mode gpt --safe-map .cache\\safe_map.json\r\n```\r\n\r\n> 외부 전송 데이터: `safe_id, name, ext, size, snippet(≤500), rule_tags, path_hint(마스킹)`만. **실경로/원문** 비전송.\r\n\r\n### 4) 롤백\r\n\r\n```powershell\r\npython devmind.py rollback --journal .cache\\journal.jsonl\r\n```\r\n\r\n### 5) 표준 스키마 & 충돌 정책\r\n\r\n* 스키마는 자동 생성.\r\n* 충돌 정책: `version`(기본) → `name__{hash7}.ext`로 모두 보존.\r\n\r\n### 6) 테스트 (TDD)\r\n\r\n```bash\r\npytest -q\r\n```\r\n\r\n* 포함 테스트: 규칙 버킷, 버전 보존, 롤백, (gpt 모드 모킹 가능)\r\n\r\n### 7) 설정 외부화 (선택)\r\n\r\n* `rules.yml`, `schema.yml`로 규칙/스키마 조정.\r\n* Cursor Agent로 **원클릭 실행** 가능(아래 가이드 참고).\r\n\r\n### 8) 보안/운영\r\n\r\n* `safe_map.json`은 로컬 전용(반출 금지).\r\n* 장기 운용 시 콘텐츠 해시(blake3) 기반 stable id로 확장 권장.\r\n* 대규모(10k+) 처리 시 해시/IO 병렬화 옵션 검토.\r\n\r\n---\r\n\r\n# Cursor-AI_실행_가이드.md\r\n\r\n## 목적\r\n\r\nCursor에서 **한 번 클릭**으로 전체 파이프라인 실행. 사용자 입력 없이 자동 실행 → HTML 리포트 오픈.\r\n\r\n## 준비\r\n\r\n1. 워크스페이스 루트에 파일 배치:\r\n\r\n```\r\ndevmind.py\r\ntests/...\r\n.cursor/agents.json\r\nrules.yml (선택)\r\nschema.yml (선택)\r\n```\r\n\r\n2. Python venv + 의존성 설치 완료.\r\n\r\n## Agent JSON\r\n\r\n`.cursor/agents.json`\r\n\r\n```json\r\n{\r\n  \"version\": 1,\r\n  \"agents\": [\r\n    {\r\n      \"name\": \"프로젝트_자동정리_바로이동\",\r\n      \"description\": \"C:\\\\\\\\HVDC PJT 와 C:\\\\\\\\cursor-mcp 를 프로젝트 단위로 묶어 표준 스키마로 즉시 이동하고 리포트까지 생성\",\r\n      \"workingDirectory\": \"${workspaceRoot}\",\r\n      \"env\": { \"PYTHONUTF8\": \"1\" },\r\n      \"steps\": [\r\n        { \"run\": \"python devmind.py scan --paths \\\"C:\\\\\\\\HVDC PJT\\\" --paths \\\"C:\\\\\\\\cursor-mcp\\\" --emit .cache/scan.json --safe-map .cache/safe_map.json\" },\r\n        { \"run\": \"python devmind.py rules --scan .cache/scan.json --emit .cache/scores.json\" },\r\n        { \"run\": \"python devmind.py cluster --scores .cache/scores.json --emit .cache/projects.json --project-mode local\" },\r\n        { \"run\": \"python devmind.py organize --projects .cache/projects.json --scores .cache/scores.json --target \\\"C:\\\\\\\\PROJECTS_STRUCT\\\" --mode move --conflict version --journal .cache/journal.jsonl\" },\r\n        { \"run\": \"python devmind.py report --journal .cache/journal.jsonl --out reports/projects_summary.html\" },\r\n        { \"openFile\": \"reports/projects_summary.html\" }\r\n      ],\r\n      \"timeout\": 0\r\n    }\r\n  ]\r\n}\r\n```\r\n\r\n### GPT 모드로 돌리고 싶으면\r\n\r\n```json\r\n{ \"run\": \"python devmind.py cluster --scores .cache/scores.json --emit .cache/projects.json --project-mode gpt --safe-map .cache/safe_map.json\" }\r\n```\r\n\r\n* 환경변수: `OPENAI_API_KEY`를 Cursor에서 주",
+    "bucket": "scripts"
+  },
+  {
+    "path": "C:\\MACHO GPT\\rules.yml",
+    "safe_id": "7109a746c3f4a302e57111fe95513080402d6d1c61296d6b2ff5e07d8d34d27b",
+    "name": "rules.yml",
+    "ext": ".yml",
+    "size": 1020,
+    "mtime": 1758902798,
+    "hint": "buckets:\r\n  src:       { exts: [\".py\"], name_keywords: [\"core\",\"utils\",\"pipeline\",\"engine\",\"module\"] }\r\n  scripts:   { code_hints: ['if __name__ == \"__main__\":'], name_keywords: [\"run\",\"install\",\"setup\",\"batch\",\"job\"] }\r\n  tests:     { imports: [\"pytest\",\"unittest\"], dir_keywords: [\"test\",\"tests\"] }\r\n  docs:      { exts: [\".md\",\".rst\",\".txt\"], title_keywords: [\"README\",\"GUIDE\",\"INSTALLATION\",\"PLAN\",\"SPEC\",\"TDD\"] }\r\n  reports:   { name_keywords: [\"report\",\"summary\",\"analysis\",\"final\",\"complete\"] }\r\n  configs:   { exts: [\".yml\",\".yaml\",\".toml\",\".ini\",\".cfg\",\".env\",\".json\",\".txt\"], name_keywords: [\"requirements\",\"config\",\"settings\",\"pyproject\"] }\r\n  data:      { exts: [\".csv\",\".xlsx\",\".xls\",\".parquet\"], dir_keywords: [\"data\",\"raw\",\"interim\",\"processed\"] }\r\n  notebooks: { exts: [\".ipynb\"] }\r\n  archive:   { name_keywords: [\"old\",\"backup\",\"bak\",\"copy\",\"v\\\\d+\"] }\r\nweights: { name: 4, dir: 3, content: 2, mimetype: 1 }\r\nproject_hints: [\"hvdc\",\"warehouse\",\"ontology\",\"mcp\",\"cursor\",\"layoutapp\",\"ldg\",\"logi\",\"stow\"]\r\n",
+    "bucket": "scripts"
+  },
+  {
+    "path": "C:\\MACHO GPT\\schema.yml",
+    "safe_id": "67b90e245db1c00bae664859d3ec76c6d412eca0465174d2d2ca939856d44e3a",
+    "name": "schema.yml",
+    "ext": ".yml",
+    "size": 359,
+    "mtime": 1758902817,
+    "hint": "target_root: \"C:/PROJECTS_STRUCT\"\r\nstructure:\r\n  - \"src/core/\"\r\n  - \"src/utils/\"\r\n  - \"src/pipelines/\"\r\n  - \"scripts/\"\r\n  - \"tests/unit/\"\r\n  - \"tests/integration/\"\r\n  - \"docs/\"\r\n  - \"reports/\"\r\n  - \"configs/\"\r\n  - \"data/raw/\"\r\n  - \"data/interim/\"\r\n  - \"data/processed/\"\r\n  - \"notebooks/\"\r\n  - \"archive/\"\r\n  - \"tmp/\"\r\nconflict_policy: \"version\"\r\nmode: \"move\"\r\n",
+    "bucket": "reports"
+  },
+  {
+    "path": "C:\\MACHO GPT\\test_rollback.py",
+    "safe_id": "e2a2eab62a6653422c6651007a08670350fedb5d8b4d65dc9c1f9a47149522b6",
+    "name": "test_rollback.py",
+    "ext": ".py",
+    "size": 1528,
+    "mtime": 1758902757,
+    "hint": "# tests/test_rollback.py\r\nimport json\r\nimport subprocess\r\nfrom pathlib import Path\r\n\r\ndef run(cmd, cwd):\r\n    r = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)\r\n    assert r.returncode == 0, r.stderr\r\n    return r\r\n\r\ndef test_rollback_moves_files_back(tmp_workspace):\r\n    # organize 먼저 수행\r\n    run([\"python\", \"devmind.py\", \"scan\",\r\n         \"--paths\", str(tmp_workspace/\"C_HVDC_PJT\"),\r\n         \"--paths\", str(tmp_workspace/\"C_cursor_mcp\"),\r\n         \"--emit\", \".cache/scan.json\"], tmp_workspace)\r\n\r\n    run([\"python\", \"devmind.py\", \"rules\",\r\n         \"--scan\", \".cache/scan.json\",\r\n         \"--emit\", \".cache/scores.json\"], tmp_workspace)\r\n\r\n    run([\"python\", \"devmind.py\", \"cluster\",\r\n         \"--scores\", \".cache/scores.json\",\r\n         \"--emit\", \".cache/projects.json\"], tmp_workspace)\r\n\r\n    target = tmp_workspace/\"PROJECTS_STRUCT\"\r\n    journal = tmp_workspace/\".cache/journal.jsonl\"\r\n    run([\"python\", \"devmind.py\", \"organize\",\r\n         \"--projects\", \".cache/projects.json\",\r\n         \"--scores\", \".cache/scores.json\",\r\n         \"--target\", str(target),\r\n         \"--mode\", \"move\",\r\n         \"--conflict\", \"version\",\r\n         \"--journal\", str(journal)], tmp_workspace)\r\n\r\n    # 롤백\r\n    run([\"python\", \"devmind.py\", \"rollback\",\r\n         \"--journal\", str(journal)], tmp_workspace)\r\n\r\n    # 원래 위치의 대표 파일 몇 개가 되돌아왔는지 샘플 확인\r\n    assert (tmp_workspace/\"C_HVDC_PJT\"/\"README.md\").exists()\r\n    assert (tmp_workspace/\"C_cursor_mcp\"/\"tool.py\").exists()\r\n",
+    "bucket": "docs"
+  },
+  {
+    "path": "C:\\MACHO GPT\\test_rules.py",
+    "safe_id": "3abc880f7da6acd2b68425c2ddb0dd045fd577bf086a40e9a3ba33b6a7c81d05",
+    "name": "test_rules.py",
+    "ext": ".py",
+    "size": 1121,
+    "mtime": 1758902723,
+    "hint": "# tests/test_rules.py\r\nimport json\r\nimport subprocess\r\nfrom pathlib import Path\r\n\r\ndef run(cmd, cwd):\r\n    r = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)\r\n    assert r.returncode == 0, r.stderr\r\n    return r\r\n\r\ndef test_rules_bucket_basic(tmp_workspace):\r\n    # 1) scan\r\n    run([\"python\", \"devmind.py\", \"scan\",\r\n         \"--paths\", str(tmp_workspace/\"C_HVDC_PJT\"),\r\n         \"--paths\", str(tmp_workspace/\"C_cursor_mcp\"),\r\n         \"--emit\", \".cache/scan.json\"], tmp_workspace)\r\n    # 2) rules\r\n    run([\"python\", \"devmind.py\", \"rules\",\r\n         \"--scan\", \".cache/scan.json\",\r\n         \"--emit\", \".cache/scores.json\"], tmp_workspace)\r\n\r\n    data = json.loads((tmp_workspace/\".cache/scores.json\").read_text(encoding=\"utf-8\"))\r\n    # 기대: README.md -> docs, run_job.ps1 -> scripts, tool.py -> src|tmp(간단규칙상 .py는 src로 태깅)\r\n    byname = {x[\"name\"]: x for x in data if \"name\" in x}\r\n    assert byname[\"README.md\"][\"bucket\"] == \"docs\"\r\n    assert byname[\"run_job.ps1\"][\"bucket\"] == \"scripts\"\r\n    assert byname[\"tool.py\"][\"bucket\"] in (\"src\", \"tmp\")  # 규칙 수정해도 유연하게\r\n",
+    "bucket": "scripts"
+  },
+  {
+    "path": "C:\\MACHO GPT\\test_versioning.py",
+    "safe_id": "9ad4515c0f5064f9f9471f8e53361f8ce006f48c5120e42f58dd4d9235f8b41f",
+    "name": "test_versioning.py",
+    "ext": ".py",
+    "size": 1451,
+    "mtime": 1758902743,
+    "hint": "# tests/test_versioning.py\r\nimport json\r\nimport subprocess\r\nfrom pathlib import Path\r\n\r\ndef run(cmd, cwd):\r\n    r = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)\r\n    assert r.returncode == 0, r.stderr\r\n    return r\r\n\r\ndef test_versioning_and_organize(tmp_workspace):\r\n    # scan→rules→cluster→organize\r\n    run([\"python\", \"devmind.py\", \"scan\",\r\n         \"--paths\", str(tmp_workspace/\"C_HVDC_PJT\"),\r\n         \"--paths\", str(tmp_workspace/\"C_cursor_mcp\"),\r\n         \"--emit\", \".cache/scan.json\"], tmp_workspace)\r\n\r\n    run([\"python\", \"devmind.py\", \"rules\",\r\n         \"--scan\", \".cache/scan.json\",\r\n         \"--emit\", \".cache/scores.json\"], tmp_workspace)\r\n\r\n    run([\"python\", \"devmind.py\", \"cluster\",\r\n         \"--scores\", \".cache/scores.json\",\r\n         \"--emit\", \".cache/projects.json\"], tmp_workspace)\r\n\r\n    target = tmp_workspace/\"PROJECTS_STRUCT\"\r\n    journal = tmp_workspace/\".cache/journal.jsonl\"\r\n    run([\"python\", \"devmind.py\", \"organize\",\r\n         \"--projects\", \".cache/projects.json\",\r\n         \"--scores\", \".cache/scores.json\",\r\n         \"--target\", str(target),\r\n         \"--mode\", \"move\",\r\n         \"--conflict\", \"version\",\r\n         \"--journal\", str(journal)], tmp_workspace)\r\n\r\n    # 같은 이름 dup.txt 두 개가 모두 존재(해시 서픽스)해야 함\r\n    dup_candidates = list(target.rglob(\"**/dup__*.txt\"))\r\n    assert len(dup_candidates) == 2, \"중복 파일 2개 모두 버전 보존되어야 함\"\r\n",
+    "bucket": "tmp"
+  },
+  {
+    "path": "C:\\MACHO GPT\\.git\\config",
+    "safe_id": "6ed9cd034501a2384094c311fa502e980795cce0b98f76924fd8130e05971056",
+    "name": "config",
+    "ext": "",
+    "size": 242,
+    "mtime": 1758900432,
+    "hint": "[core]\n\trepositoryformatversion = 0\n\tfilemode = false\n\tbare = false\n\tlogallrefupdates = true\n\tsymlinks = false\n\tignorecase = true\n[remote \"origin\"]\n\turl = https://github.com/macho715/MACHO-GPT.git\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n",
+    "bucket": "tmp"
+  },
+  {
+    "path": "C:\\MACHO GPT\\.git\\description",
+    "safe_id": "72669a5cca94f816d430fce59ef66ef2d662c345c5a91a4af566fba13f88ac20",
+    "name": "description",
+    "ext": "",
+    "size": 73,
+    "mtime": 1758900430,
+    "hint": "Unnamed repository; edit this file 'description' to name the repository.\n",
+    "bucket": "tmp"
+  },
+  {
+    "path": "C:\\MACHO GPT\\.git\\HEAD",
+    "safe_id": "bcb4b421b0d35623c0659e6f7cf092104c5498c31497e1de4ed95c5db0c507aa",
+    "name": "HEAD",
+    "ext": "",
+    "size": 23,
+    "mtime": 1758900430,
+    "hint": "ref: refs/heads/master\n",
+    "bucket": "tmp"
+  },
+  {
+    "path": "C:\\MACHO GPT\\.git\\hooks\\applypatch-msg.sample",
+    "safe_id": "bb11a792b5dd6438ab7a4660b66b4c63515a5007893f9d4ba0e1159ae6ab9956",
+    "name": "applypatch-msg.sample",
+    "ext": ".sample",
+    "size": 478,
+    "mtime": 1758900430,
+    "hint": "#!/bin/sh\n#\n# An example hook script to check the commit log message taken by\n# applypatch from an e-mail message.\n#\n# The hook should exit with non-zero status after issuing an\n# appropriate message if it wants to stop the commit.  The hook is\n# allowed to edit the commit message file.\n#\n# To enable this hook, rename this file to \"applypatch-msg\".\n\n. git-sh-setup\ncommitmsg=\"$(git rev-parse --git-path hooks/commit-msg)\"\ntest -x \"$commitmsg\" && exec \"$commitmsg\" ${1+\"$@\"}\n:\n",
+    "bucket": "scripts"
+  },
+  {
+    "path": "C:\\MACHO GPT\\.git\\hooks\\commit-msg.sample",
+    "safe_id": "1163d72a8e66b961f451a27b94e9634b68cf8708532faa0181682b83bcf2d516",
+    "name": "commit-msg.sample",
+    "ext": ".sample",
+    "size": 896,
+    "mtime": 1758900430,
+    "hint": "#!/bin/sh\n#\n# An example hook script to check the commit log message.\n# Called by \"git commit\" with one argument, the name of the file\n# that has the commit message.  The hook should exit with non-zero\n# status after issuing an appropriate message if it wants to stop the\n# commit.  The hook is allowed to edit the commit message file.\n#\n# To enable this hook, rename this file to \"commit-msg\".\n\n# Uncomment the below to add a Signed-off-by line to the message.\n# Doing this in a hook is a bad idea in general, but the prepare-commit-msg\n# hook is more suited to it.\n#\n# SOB=$(git var GIT_AUTHOR_IDENT | sed -n 's/^\\(.*>\\).*$/Signed-off-by: \\1/p')\n# grep -qs \"^$SOB\" \"$1\" || echo \"$SOB\" >> \"$1\"\n\n# This example catches duplicate Signed-off-by lines.\n\ntest \"\" = \"$(grep '^Signed-off-by: ' \"$1\" |\n\t sort | uniq -c | sed -e '/^[ \t]*1[ \t]/d')\" || {\n\techo >&2 Duplicate Signed-off-by lines.\n\texit 1\n}\n",
+    "bucket": "tmp"
+  },
+  {
+    "path": "C:\\MACHO GPT\\.git\\hooks\\fsmonitor-watchman.sample",
+    "safe_id": "54a27344f6bd974669d842e5b06c8318ad4c2cb49e1aac9276acf3bb09fe0ffb",
+    "name": "fsmonitor-watchman.sample",
+    "ext": ".sample",
+    "size": 4726,
+    "mtime": 1758900430,
+    "hint": "#!/usr/bin/perl\n\nuse strict;\nuse warnings;\nuse IPC::Open2;\n\n# An example hook script to integrate Watchman\n# (https://facebook.github.io/watchman/) with git to speed up detecting\n# new and modified files.\n#\n# The hook is passed a version (currently 2) and last update token\n# formatted as a string and outputs to stdout a new update token and\n# all files that have been modified since the update token. Paths must\n# be relative to the root of the working tree and separated by a single NUL.\n#\n# To enable this hook, rename this file to \"query-watchman\" and set\n# 'git config core.fsmonitor .git/hooks/query-watchman'\n#\nmy ($version, $last_update_token) = @ARGV;\n\n# Uncomment for debugging\n# print STDERR \"$0 $version $last_update_token\\n\";\n\n# Check the hook interface version\nif ($version ne 2) {\n\tdie \"Unsupported query-fsmonitor hook version '$version'.\\n\" .\n\t    \"Falling back to scanning...\\n\";\n}\n\nmy $git_work_tree = get_working_dir();\n\nmy $retry = 1;\n\nmy $json_pkg;\neval {\n\trequire JSON::XS;\n\t$json_pkg = \"JSON::XS\";\n\t1;\n} or do {\n\trequire JSON::PP;\n\t$json_pkg = \"JSON::PP\";\n};\n\nlaunch_watchman();\n\nsub launch_watchman {\n\tmy $o = watchman_query();\n\tif (is_work_tree_watched($o)) {\n\t\toutput_result($o->{clock}, @{$o->{files}});\n\t}\n}\n\nsub output_result {\n\tmy ($clockid, @files) = @_;\n\n\t# Uncomment for debugging watchman output\n\t# open (my $fh, \">\", \".git/watchman-output.out\");\n\t# binmode $fh, \":utf8\";\n\t# print $fh \"$clockid\\n@files\\n\";\n\t# close $fh;\n\n\tbinmode STDOUT, \":utf8\";\n\tprint $clockid;\n\tprint \"\\0\";\n\tlocal $, = \"\\0\";\n\tprint @files;\n}\n\nsub watchman_clock {\n\tmy $response = qx/watchman clock \"$git_work_tree\"/;\n\tdie \"Failed to get clock id on '$git_work_tree'.\\n\" .\n\t\t\"Falling back to scanning...\\n\" if $? != 0;\n\n\treturn $json_pkg->new->utf8->decode($response);\n}\n\nsub watchman_query {\n\tmy $pid = open2(\\*CHLD_OUT, \\*CHLD_IN, 'watchman -j --no-pretty')\n\tor die \"open2() failed: $!\\n\" .\n\t\"Falling back to scanning...\\n\";\n\n\t# In the query expression below we're asking for names of files that\n\t# changed since $last_update_token but not from the .git folder.\n\t#\n\t# To accomplish this, we're using the \"since\" generator to use the\n\t# recency index to select candidate nodes and \"fields\" to limit the\n\t# output to file names only. Then we're using the \"expression\" term to\n\t# further constrain the results.\n\tmy $last_update_line = \"\";\n\tif (substr($last_update_token, 0, 1) eq \"c\") {\n\t\t$last_update_token = \"\\\"$last_update_token\\\"\";\n\t\t$last_update_line = qq[\\n\"since\": $last_update_token,];\n\t}\n\tmy $query = <<\"\tEND\";\n\t\t[\"query\", \"$git_work_tree\", {$last_update_line\n\t\t\t\"fields\": [\"name\"],\n\t\t\t\"expression\": [\"not\", [\"dirname\", \".git\"]]\n\t\t}]\n\tEND\n\n\t# Uncomment for debugging the watchman query\n\t# open (my $fh, \">\", \".git/watchman-query.json\");\n\t# print $fh $query;\n\t# close $fh;\n\n\tprint CHLD_IN $query;\n\tclose CHLD_IN;\n\tmy $response = do {local $/; <CHLD_OUT>};\n\n\t# Uncomment for debugging the watch response\n\t# open ($fh, \">\", \".git/watchman-response.json\");\n\t# print $fh $response;\n\t# close $fh;\n\n\tdie \"Watchman: command returned no output.\\n\" .\n\t\"Falling back to scanning...\\n\" if $response eq \"\";\n\tdie \"Watchman: command returned invalid output: $response\\n\" .\n\t\"Falling back to scanning...\\n\" unless $response =~ /^\\{/;\n\n\treturn $json_pkg->new->utf8->decode($response);\n}\n\nsub is_work_tree_watched {\n\tmy ($output) = @_;\n\tmy $error = $output->{error};\n\tif ($retry > 0 and $error and $error =~ m/unable to resolve root .* directory (.*) is not watched/) {\n\t\t$retry--;\n\t\tmy $response = qx/watchman watch \"$git_work_tree\"/;\n\t\tdie \"Failed to make watchman watch '$git_work_tree'.\\n\" .\n\t\t    \"Falling back to scanning...\\n\" if $? != 0;\n\t\t$output = $json_pkg->new->utf8->decode($response);\n\t\t$error = $output->{error};\n\t\tdie \"Watchman: $error.\\n\" .\n\t\t\"Falling back to scanning...\\n\" if $error;\n\n\t\t# Uncomment for debugging watchman output\n\t\t# open (my $fh, \">\", \".git/watchman-output.out\");\n\t\t# close $fh;\n\n\t\t# Watchman will always return all files on the first query so\n\t\t# return the fast \"everything is dirty\" flag to git and do the\n\t\t# Watchman query just to get it over with now so we w",
+    "bucket": "archive"
+  },
+  {
+    "path": "C:\\MACHO GPT\\.git\\hooks\\post-update.sample",
+    "safe_id": "fb78ca17dc7cc9bd517ab580016761b3c69dd36ee209bc7c035e8e627e97523c",
+    "name": "post-update.sample",
+    "ext": ".sample",
+    "size": 189,
+    "mtime": 1758900430,
+    "hint": "#!/bin/sh\n#\n# An example hook script to prepare a packed repository for use over\n# dumb transports.\n#\n# To enable this hook, rename this file to \"post-update\".\n\nexec git update-server-info\n",
+    "bucket": "tmp"
+  },
+  {
+    "path": "C:\\MACHO GPT\\.git\\hooks\\pre-applypatch.sample",
+    "safe_id": "62d503af35ed3757460566eb0bac4d35de8fbd9977b7182955a76abb196a71ba",
+    "name": "pre-applypatch.sample",
+    "ext": ".sample",
+    "size": 424,
+    "mtime": 1758900430,
+    "hint": "#!/bin/sh\n#\n# An example hook script to verify what is about to be committed\n# by applypatch from an e-mail message.\n#\n# The hook should exit with non-zero status after issuing an\n# appropriate message if it wants to stop the commit.\n#\n# To enable this hook, rename this file to \"pre-applypatch\".\n\n. git-sh-setup\nprecommit=\"$(git rev-parse --git-path hooks/pre-commit)\"\ntest -x \"$precommit\" && exec \"$precommit\" ${1+\"$@\"}\n:\n",
+    "bucket": "scripts"
+  },
+  {
+    "path": "C:\\MACHO GPT\\.git\\hooks\\pre-commit.sample",
+    "safe_id": "6fe406cb053580c5cbe712e3399a4d7cf5e0965f670e437a40a62ec4af85bab0",
+    "name": "pre-commit.sample",
+    "ext": ".sample",
+    "size": 1649,
+    "mtime": 1758900430,
+    "hint": "#!/bin/sh\n#\n# An example hook script to verify what is about to be committed.\n# Called by \"git commit\" with no arguments.  The hook should\n# exit with non-zero status after issuing an appropriate message if\n# it wants to stop the commit.\n#\n# To enable this hook, rename this file to \"pre-commit\".\n\nif git rev-parse --verify HEAD >/dev/null 2>&1\nthen\n\tagainst=HEAD\nelse\n\t# Initial commit: diff against an empty tree object\n\tagainst=$(git hash-object -t tree /dev/null)\nfi\n\n# If you want to allow non-ASCII filenames set this variable to true.\nallownonascii=$(git config --type=bool hooks.allownonascii)\n\n# Redirect output to stderr.\nexec 1>&2\n\n# Cross platform projects tend to avoid non-ASCII filenames; prevent\n# them from being added to the repository. We exploit the fact that the\n# printable range starts at the space character and ends with tilde.\nif [ \"$allownonascii\" != \"true\" ] &&\n\t# Note that the use of brackets around a tr range is ok here, (it's\n\t# even required, for portability to Solaris 10's /usr/bin/tr), since\n\t# the square bracket bytes happen to fall in the designated range.\n\ttest $(git diff-index --cached --name-only --diff-filter=A -z $against |\n\t  LC_ALL=C tr -d '[ -~]\\0' | wc -c) != 0\nthen\n\tcat <<\\EOF\nError: Attempt to add a non-ASCII file name.\n\nThis can cause problems if you want to work with people on other platforms.\n\nTo be portable it is advisable to rename the file.\n\nIf you know what you are doing you can disable this check using:\n\n  git config hooks.allownonascii true\nEOF\n\texit 1\nfi\n\n# If there are whitespace errors, print the offending file names and fail.\nexec git diff-index --check --cached $against --\n",
+    "bucket": "tmp"
+  },
+  {
+    "path": "C:\\MACHO GPT\\.git\\hooks\\pre-merge-commit.sample",
+    "safe_id": "f77db97d1d37fe459d81b9246c9cfb07ded956dc5abe6055d2f3b0fd203f5011",
+    "name": "pre-merge-commit.sample",
+    "ext": ".sample",
+    "size": 416,
+    "mtime": 1758900430,
+    "hint": "#!/bin/sh\n#\n# An example hook script to verify what is about to be committed.\n# Called by \"git merge\" with no arguments.  The hook should\n# exit with non-zero status after issuing an appropriate message to\n# stderr if it wants to stop the merge commit.\n#\n# To enable this hook, rename this file to \"pre-merge-commit\".\n\n. git-sh-setup\ntest -x \"$GIT_DIR/hooks/pre-commit\" &&\n        exec \"$GIT_DIR/hooks/pre-commit\"\n:\n",
+    "bucket": "scripts"
+  },
+  {
+    "path": "C:\\MACHO GPT\\.git\\hooks\\pre-push.sample",
+    "safe_id": "d62f2e9aa9398da0153aa542238ef65e61c71d965f7f3537dd3569ca5e99753f",
+    "name": "pre-push.sample",
+    "ext": ".sample",
+    "size": 1374,
+    "mtime": 1758900430,
+    "hint": "#!/bin/sh\n\n# An example hook script to verify what is about to be pushed.  Called by \"git\n# push\" after it has checked the remote status, but before anything has been\n# pushed.  If this script exits with a non-zero status nothing will be pushed.\n#\n# This hook is called with the following parameters:\n#\n# $1 -- Name of the remote to which the push is being done\n# $2 -- URL to which the push is being done\n#\n# If pushing without using a named remote those arguments will be equal.\n#\n# Information about the commits which are being pushed is supplied as lines to\n# the standard input in the form:\n#\n#   <local ref> <local oid> <remote ref> <remote oid>\n#\n# This sample shows how to prevent push of commits where the log message starts\n# with \"WIP\" (work in progress).\n\nremote=\"$1\"\nurl=\"$2\"\n\nzero=$(git hash-object --stdin </dev/null | tr '[0-9a-f]' '0')\n\nwhile read local_ref local_oid remote_ref remote_oid\ndo\n\tif test \"$local_oid\" = \"$zero\"\n\tthen\n\t\t# Handle delete\n\t\t:\n\telse\n\t\tif test \"$remote_oid\" = \"$zero\"\n\t\tthen\n\t\t\t# New branch, examine all commits\n\t\t\trange=\"$local_oid\"\n\t\telse\n\t\t\t# Update to existing branch, examine new commits\n\t\t\trange=\"$remote_oid..$local_oid\"\n\t\tfi\n\n\t\t# Check for WIP commit\n\t\tcommit=$(git rev-list -n 1 --grep '^WIP' \"$range\")\n\t\tif test -n \"$commit\"\n\t\tthen\n\t\t\techo >&2 \"Found WIP commit in $local_ref, not pushing\"\n\t\t\texit 1\n\t\tfi\n\tfi\ndone\n\nexit 0\n",
+    "bucket": "tmp"
+  },
+  {
+    "path": "C:\\MACHO GPT\\.git\\hooks\\pre-rebase.sample",
+    "safe_id": "602c0526698e4405374fb5a00c705b92330053f2be43e745c8f7fc126d57f72d",
+    "name": "pre-rebase.sample",
+    "ext": ".sample",
+    "size": 4898,
+    "mtime": 1758900430,
+    "hint": "#!/bin/sh\n#\n# Copyright (c) 2006, 2008 Junio C Hamano\n#\n# The \"pre-rebase\" hook is run just before \"git rebase\" starts doing\n# its job, and can prevent the command from running by exiting with\n# non-zero status.\n#\n# The hook is called with the following parameters:\n#\n# $1 -- the upstream the series was forked from.\n# $2 -- the branch being rebased (or empty when rebasing the current branch).\n#\n# This sample shows how to prevent topic branches that are already\n# merged to 'next' branch from getting rebased, because allowing it\n# would result in rebasing already published history.\n\npublish=next\nbasebranch=\"$1\"\nif test \"$#\" = 2\nthen\n\ttopic=\"refs/heads/$2\"\nelse\n\ttopic=`git symbolic-ref HEAD` ||\n\texit 0 ;# we do not interrupt rebasing detached HEAD\nfi\n\ncase \"$topic\" in\nrefs/heads/??/*)\n\t;;\n*)\n\texit 0 ;# we do not interrupt others.\n\t;;\nesac\n\n# Now we are dealing with a topic branch being rebased\n# on top of master.  Is it OK to rebase it?\n\n# Does the topic really exist?\ngit show-ref -q \"$topic\" || {\n\techo >&2 \"No such branch $topic\"\n\texit 1\n}\n\n# Is topic fully merged to master?\nnot_in_master=`git rev-list --pretty=oneline ^master \"$topic\"`\nif test -z \"$not_in_master\"\nthen\n\techo >&2 \"$topic is fully merged to master; better remove it.\"\n\texit 1 ;# we could allow it, but there is no point.\nfi\n\n# Is topic ever merged to next?  If so you should not be rebasing it.\nonly_next_1=`git rev-list ^master \"^$topic\" ${publish} | sort`\nonly_next_2=`git rev-list ^master           ${publish} | sort`\nif test \"$only_next_1\" = \"$only_next_2\"\nthen\n\tnot_in_topic=`git rev-list \"^$topic\" master`\n\tif test -z \"$not_in_topic\"\n\tthen\n\t\techo >&2 \"$topic is already up to date with master\"\n\t\texit 1 ;# we could allow it, but there is no point.\n\telse\n\t\texit 0\n\tfi\nelse\n\tnot_in_next=`git rev-list --pretty=oneline ^${publish} \"$topic\"`\n\t/usr/bin/perl -e '\n\t\tmy $topic = $ARGV[0];\n\t\tmy $msg = \"* $topic has commits already merged to public branch:\\n\";\n\t\tmy (%not_in_next) = map {\n\t\t\t/^([0-9a-f]+) /;\n\t\t\t($1 => 1);\n\t\t} split(/\\n/, $ARGV[1]);\n\t\tfor my $elem (map {\n\t\t\t\t/^([0-9a-f]+) (.*)$/;\n\t\t\t\t[$1 => $2];\n\t\t\t} split(/\\n/, $ARGV[2])) {\n\t\t\tif (!exists $not_in_next{$elem->[0]}) {\n\t\t\t\tif ($msg) {\n\t\t\t\t\tprint STDERR $msg;\n\t\t\t\t\tundef $msg;\n\t\t\t\t}\n\t\t\t\tprint STDERR \" $elem->[1]\\n\";\n\t\t\t}\n\t\t}\n\t' \"$topic\" \"$not_in_next\" \"$not_in_master\"\n\texit 1\nfi\n\n<<\\DOC_END\n\nThis sample hook safeguards topic branches that have been\npublished from being rewound.\n\nThe workflow assumed here is:\n\n * Once a topic branch forks from \"master\", \"master\" is never\n   merged into it again (either directly or indirectly).\n\n * Once a topic branch is fully cooked and merged into \"master\",\n   it is deleted.  If you need to build on top of it to correct\n   earlier mistakes, a new topic branch is created by forking at\n   the tip of the \"master\".  This is not strictly necessary, but\n   it makes it easier to keep your history simple.\n\n * Whenever you need to test or publish your changes to topic\n   branches, merge them into \"next\" branch.\n\nThe script, being an example, hardcodes the publish branch name\nto be \"next\", but it is trivial to make it configurable via\n$GIT_DIR/config mechanism.\n\nWith this workflow, you would want to know:\n\n(1) ... if a topic branch has ever been merged to \"next\".  Young\n    topic branches can have stupid mistakes you would rather\n    clean up before publishing, and things that have not been\n    merged into other branches can be easily rebased without\n    affecting other people.  But once it is published, you would\n    not want to rewind it.\n\n(2) ... if a topic branch has been fully merged to \"master\".\n    Then you can delete it.  More importantly, you should not\n    build on top of it -- other people may already want to\n    change things related to the topic as patches against your\n    \"master\", so if you need further changes, it is better to\n    fork the topic (perhaps with the same name) afresh from the\n    tip of \"master\".\n\nLet's look at this example:\n\n\t\t   o---o---o---o---o---o---o---o---o---o \"next\"\n\t\t  /       /           /           /\n\t\t /   a---a---b A     /           /\n\t\t/   /     ",
+    "bucket": "tmp"
+  },
+  {
+    "path": "C:\\MACHO GPT\\.git\\hooks\\pre-receive.sample",
+    "safe_id": "be15ec951f7323afca5b9b564bc9b568ecc60947577ddb3445336be21a9f9536",
+    "name": "pre-receive.sample",
+    "ext": ".sample",
+    "size": 544,
+    "mtime": 1758900430,
+    "hint": "#!/bin/sh\n#\n# An example hook script to make use of push options.\n# The example simply echoes all push options that start with 'echoback='\n# and rejects all pushes when the \"reject\" push option is used.\n#\n# To enable this hook, rename this file to \"pre-receive\".\n\nif test -n \"$GIT_PUSH_OPTION_COUNT\"\nthen\n\ti=0\n\twhile test \"$i\" -lt \"$GIT_PUSH_OPTION_COUNT\"\n\tdo\n\t\teval \"value=\\$GIT_PUSH_OPTION_$i\"\n\t\tcase \"$value\" in\n\t\techoback=*)\n\t\t\techo \"echo from the pre-receive-hook: ${value#*=}\" >&2\n\t\t\t;;\n\t\treject)\n\t\t\texit 1\n\t\tesac\n\t\ti=$((i + 1))\n\tdone\nfi\n",
+    "bucket": "tmp"
+  },
+  {
+    "path": "C:\\MACHO GPT\\.git\\hooks\\prepare-commit-msg.sample",
+    "safe_id": "82bc768143154939782811a62d1e68495ea61cb3c4ab6928807041d6654c888f",
+    "name": "prepare-commit-msg.sample",
+    "ext": ".sample",
+    "size": 1492,
+    "mtime": 1758900430,
+    "hint": "#!/bin/sh\n#\n# An example hook script to prepare the commit log message.\n# Called by \"git commit\" with the name of the file that has the\n# commit message, followed by the description of the commit\n# message's source.  The hook's purpose is to edit the commit\n# message file.  If the hook fails with a non-zero status,\n# the commit is aborted.\n#\n# To enable this hook, rename this file to \"prepare-commit-msg\".\n\n# This hook includes three examples. The first one removes the\n# \"# Please enter the commit message...\" help message.\n#\n# The second includes the output of \"git diff --name-status -r\"\n# into the message, just before the \"git status\" output.  It is\n# commented because it doesn't cope with --amend or with squashed\n# commits.\n#\n# The third example adds a Signed-off-by line to the message, that can\n# still be edited.  This is rarely a good idea.\n\nCOMMIT_MSG_FILE=$1\nCOMMIT_SOURCE=$2\nSHA1=$3\n\n/usr/bin/perl -i.bak -ne 'print unless(m/^. Please enter the commit message/..m/^#$/)' \"$COMMIT_MSG_FILE\"\n\n# case \"$COMMIT_SOURCE,$SHA1\" in\n#  ,|template,)\n#    /usr/bin/perl -i.bak -pe '\n#       print \"\\n\" . `git diff --cached --name-status -r`\n# \t if /^#/ && $first++ == 0' \"$COMMIT_MSG_FILE\" ;;\n#  *) ;;\n# esac\n\n# SOB=$(git var GIT_COMMITTER_IDENT | sed -n 's/^\\(.*>\\).*$/Signed-off-by: \\1/p')\n# git interpret-trailers --in-place --trailer \"$SOB\" \"$COMMIT_MSG_FILE\"\n# if test -z \"$COMMIT_SOURCE\"\n# then\n#   /usr/bin/perl -i.bak -pe 'print \"\\n\" if !$first_line++' \"$COMMIT_MSG_FILE\"\n# fi\n",
+    "bucket": "tmp"
+  },
+  {
+    "path": "C:\\MACHO GPT\\.git\\hooks\\push-to-checkout.sample",
+    "safe_id": "58c110995a26b682c3b3f6435e86d90e1be2ca18b97d4b2c5fc295fbefa6594c",
+    "name": "push-to-checkout.sample",
+    "ext": ".sample",
+    "size": 2783,
+    "mtime": 1758900430,
+    "hint": "#!/bin/sh\n\n# An example hook script to update a checked-out tree on a git push.\n#\n# This hook is invoked by git-receive-pack(1) when it reacts to git\n# push and updates reference(s) in its repository, and when the push\n# tries to update the branch that is currently checked out and the\n# receive.denyCurrentBranch configuration variable is set to\n# updateInstead.\n#\n# By default, such a push is refused if the working tree and the index\n# of the remote repository has any difference from the currently\n# checked out commit; when both the working tree and the index match\n# the current commit, they are updated to match the newly pushed tip\n# of the branch. This hook is to be used to override the default\n# behaviour; however the code below reimplements the default behaviour\n# as a starting point for convenient modification.\n#\n# The hook receives the commit with which the tip of the current\n# branch is going to be updated:\ncommit=$1\n\n# It can exit with a non-zero status to refuse the push (when it does\n# so, it must not modify the index or the working tree).\ndie () {\n\techo >&2 \"$*\"\n\texit 1\n}\n\n# Or it can make any necessary changes to the working tree and to the\n# index to bring them to the desired state when the tip of the current\n# branch is updated to the new commit, and exit with a zero status.\n#\n# For example, the hook can simply run git read-tree -u -m HEAD \"$1\"\n# in order to emulate git fetch that is run in the reverse direction\n# with git push, as the two-tree form of git read-tree -u -m is\n# essentially the same as git switch or git checkout that switches\n# branches while keeping the local changes in the working tree that do\n# not interfere with the difference between the branches.\n\n# The below is a more-or-less exact translation to shell of the C code\n# for the default behaviour for git's push-to-checkout hook defined in\n# the push_to_deploy() function in builtin/receive-pack.c.\n#\n# Note that the hook will be executed from the repository directory,\n# not from the working tree, so if you want to perform operations on\n# the working tree, you will have to adapt your code accordingly, e.g.\n# by adding \"cd ..\" or using relative paths.\n\nif ! git update-index -q --ignore-submodules --refresh\nthen\n\tdie \"Up-to-date check failed\"\nfi\n\nif ! git diff-files --quiet --ignore-submodules --\nthen\n\tdie \"Working directory has unstaged changes\"\nfi\n\n# This is a rough translation of:\n#\n#   head_has_history() ? \"HEAD\" : EMPTY_TREE_SHA1_HEX\nif git cat-file -e HEAD 2>/dev/null\nthen\n\thead=HEAD\nelse\n\thead=$(git hash-object -t tree --stdin </dev/null)\nfi\n\nif ! git diff-index --quiet --cached --ignore-submodules $head --\nthen\n\tdie \"Working directory has staged changes\"\nfi\n\nif ! git read-tree -u -m \"$commit\"\nthen\n\tdie \"Could not update working tree to new HEAD\"\nfi\n",
+    "bucket": "tmp"
+  },
+  {
+    "path": "C:\\MACHO GPT\\.git\\hooks\\sendemail-validate.sample",
+    "safe_id": "58ac67f570b6e82bd42f79f2d131ad2f80423f768b78551dc126b679b4f24de4",
+    "name": "sendemail-validate.sample",
+    "ext": ".sample",
+    "size": 2308,
+    "mtime": 1758900430,
+    "hint": "#!/bin/sh\n\n# An example hook script to validate a patch (and/or patch series) before\n# sending it via email.\n#\n# The hook should exit with non-zero status after issuing an appropriate\n# message if it wants to prevent the email(s) from being sent.\n#\n# To enable this hook, rename this file to \"sendemail-validate\".\n#\n# By default, it will only check that the patch(es) can be applied on top of\n# the default upstream branch without conflicts in a secondary worktree. After\n# validation (successful or not) of the last patch of a series, the worktree\n# will be deleted.\n#\n# The following config variables can be set to change the default remote and\n# remote ref that are used to apply the patches against:\n#\n#   sendemail.validateRemote (default: origin)\n#   sendemail.validateRemoteRef (default: HEAD)\n#\n# Replace the TODO placeholders with appropriate checks according to your\n# needs.\n\nvalidate_cover_letter () {\n\tfile=\"$1\"\n\t# TODO: Replace with appropriate checks (e.g. spell checking).\n\ttrue\n}\n\nvalidate_patch () {\n\tfile=\"$1\"\n\t# Ensure that the patch applies without conflicts.\n\tgit am -3 \"$file\" || return\n\t# TODO: Replace with appropriate checks for this patch\n\t# (e.g. checkpatch.pl).\n\ttrue\n}\n\nvalidate_series () {\n\t# TODO: Replace with appropriate checks for the whole series\n\t# (e.g. quick build, coding style checks, etc.).\n\ttrue\n}\n\n# main -------------------------------------------------------------------------\n\nif test \"$GIT_SENDEMAIL_FILE_COUNTER\" = 1\nthen\n\tremote=$(git config --default origin --get sendemail.validateRemote) &&\n\tref=$(git config --default HEAD --get sendemail.validateRemoteRef) &&\n\tworktree=$(mktemp --tmpdir -d sendemail-validate.XXXXXXX) &&\n\tgit worktree add -fd --checkout \"$worktree\" \"refs/remotes/$remote/$ref\" &&\n\tgit config --replace-all sendemail.validateWorktree \"$worktree\"\nelse\n\tworktree=$(git config --get sendemail.validateWorktree)\nfi || {\n\techo \"sendemail-validate: error: failed to prepare worktree\" >&2\n\texit 1\n}\n\nunset GIT_DIR GIT_WORK_TREE\ncd \"$worktree\" &&\n\nif grep -q \"^diff --git \" \"$1\"\nthen\n\tvalidate_patch \"$1\"\nelse\n\tvalidate_cover_letter \"$1\"\nfi &&\n\nif test \"$GIT_SENDEMAIL_FILE_COUNTER\" = \"$GIT_SENDEMAIL_FILE_TOTAL\"\nthen\n\tgit config --unset-all sendemail.validateWorktree &&\n\ttrap 'git worktree remove -ff \"$worktree\"' EXIT &&\n\tvalidate_series\nfi\n",
+    "bucket": "archive"
+  },
+  {
+    "path": "C:\\MACHO GPT\\.git\\hooks\\update.sample",
+    "safe_id": "b7dfa751b583a34047f7c696664f9b072c7748f6e84e7de98d3f6e41365b5d99",
+    "name": "update.sample",
+    "ext": ".sample",
+    "size": 3650,
+    "mtime": 1758900430,
+    "hint": "#!/bin/sh\n#\n# An example hook script to block unannotated tags from entering.\n# Called by \"git receive-pack\" with arguments: refname sha1-old sha1-new\n#\n# To enable this hook, rename this file to \"update\".\n#\n# Config\n# ------\n# hooks.allowunannotated\n#   This boolean sets whether unannotated tags will be allowed into the\n#   repository.  By default they won't be.\n# hooks.allowdeletetag\n#   This boolean sets whether deleting tags will be allowed in the\n#   repository.  By default they won't be.\n# hooks.allowmodifytag\n#   This boolean sets whether a tag may be modified after creation. By default\n#   it won't be.\n# hooks.allowdeletebranch\n#   This boolean sets whether deleting branches will be allowed in the\n#   repository.  By default they won't be.\n# hooks.denycreatebranch\n#   This boolean sets whether remotely creating branches will be denied\n#   in the repository.  By default this is allowed.\n#\n\n# --- Command line\nrefname=\"$1\"\noldrev=\"$2\"\nnewrev=\"$3\"\n\n# --- Safety check\nif [ -z \"$GIT_DIR\" ]; then\n\techo \"Don't run this script from the command line.\" >&2\n\techo \" (if you want, you could supply GIT_DIR then run\" >&2\n\techo \"  $0 <ref> <oldrev> <newrev>)\" >&2\n\texit 1\nfi\n\nif [ -z \"$refname\" -o -z \"$oldrev\" -o -z \"$newrev\" ]; then\n\techo \"usage: $0 <ref> <oldrev> <newrev>\" >&2\n\texit 1\nfi\n\n# --- Config\nallowunannotated=$(git config --type=bool hooks.allowunannotated)\nallowdeletebranch=$(git config --type=bool hooks.allowdeletebranch)\ndenycreatebranch=$(git config --type=bool hooks.denycreatebranch)\nallowdeletetag=$(git config --type=bool hooks.allowdeletetag)\nallowmodifytag=$(git config --type=bool hooks.allowmodifytag)\n\n# check for no description\nprojectdesc=$(sed -e '1q' \"$GIT_DIR/description\")\ncase \"$projectdesc\" in\n\"Unnamed repository\"* | \"\")\n\techo \"*** Project description file hasn't been set\" >&2\n\texit 1\n\t;;\nesac\n\n# --- Check types\n# if $newrev is 0000...0000, it's a commit to delete a ref.\nzero=$(git hash-object --stdin </dev/null | tr '[0-9a-f]' '0')\nif [ \"$newrev\" = \"$zero\" ]; then\n\tnewrev_type=delete\nelse\n\tnewrev_type=$(git cat-file -t $newrev)\nfi\n\ncase \"$refname\",\"$newrev_type\" in\n\trefs/tags/*,commit)\n\t\t# un-annotated tag\n\t\tshort_refname=${refname##refs/tags/}\n\t\tif [ \"$allowunannotated\" != \"true\" ]; then\n\t\t\techo \"*** The un-annotated tag, $short_refname, is not allowed in this repository\" >&2\n\t\t\techo \"*** Use 'git tag [ -a | -s ]' for tags you want to propagate.\" >&2\n\t\t\texit 1\n\t\tfi\n\t\t;;\n\trefs/tags/*,delete)\n\t\t# delete tag\n\t\tif [ \"$allowdeletetag\" != \"true\" ]; then\n\t\t\techo \"*** Deleting a tag is not allowed in this repository\" >&2\n\t\t\texit 1\n\t\tfi\n\t\t;;\n\trefs/tags/*,tag)\n\t\t# annotated tag\n\t\tif [ \"$allowmodifytag\" != \"true\" ] && git rev-parse $refname > /dev/null 2>&1\n\t\tthen\n\t\t\techo \"*** Tag '$refname' already exists.\" >&2\n\t\t\techo \"*** Modifying a tag is not allowed in this repository.\" >&2\n\t\t\texit 1\n\t\tfi\n\t\t;;\n\trefs/heads/*,commit)\n\t\t# branch\n\t\tif [ \"$oldrev\" = \"$zero\" -a \"$denycreatebranch\" = \"true\" ]; then\n\t\t\techo \"*** Creating a branch is not allowed in this repository\" >&2\n\t\t\texit 1\n\t\tfi\n\t\t;;\n\trefs/heads/*,delete)\n\t\t# delete branch\n\t\tif [ \"$allowdeletebranch\" != \"true\" ]; then\n\t\t\techo \"*** Deleting a branch is not allowed in this repository\" >&2\n\t\t\texit 1\n\t\tfi\n\t\t;;\n\trefs/remotes/*,commit)\n\t\t# tracking branch\n\t\t;;\n\trefs/remotes/*,delete)\n\t\t# delete tracking branch\n\t\tif [ \"$allowdeletebranch\" != \"true\" ]; then\n\t\t\techo \"*** Deleting a tracking branch is not allowed in this repository\" >&2\n\t\t\texit 1\n\t\tfi\n\t\t;;\n\t*)\n\t\t# Anything else (is there anything else?)\n\t\techo \"*** Update hook: unknown type of update to ref $refname of type $newrev_type\" >&2\n\t\texit 1\n\t\t;;\nesac\n\n# --- Finished\nexit 0\n",
+    "bucket": "archive"
+  },
+  {
+    "path": "C:\\MACHO GPT\\.git\\info\\exclude",
+    "safe_id": "06266f5200a01dc30c71c58c2c117ea1f80421df6c0541486aea252a9a300d2d",
+    "name": "exclude",
+    "ext": "",
+    "size": 240,
+    "mtime": 1758900430,
+    "hint": "# git ls-files --others --exclude-from=.git/info/exclude\n# Lines that start with '#' are comments.\n# For a project mostly in C, the following would be a good set of\n# exclude patterns (uncomment them if you want to use them):\n# *.[oa]\n# *~\n",
+    "bucket": "tmp"
+  }
+]
