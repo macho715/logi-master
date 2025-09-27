@@ -1,6 +1,6 @@
 {
-  "incoterm": "CIF",
-  "hs_code": "8517.70",
-  "currency": "AED",
-  "declared_value": "1250.50"
+    "incoterm": "CIF",
+    "hs_code": "8517.70",
+    "currency": "AED",
+    "declared_value": "1250.50"
 }

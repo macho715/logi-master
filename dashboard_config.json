@@ -1,0 +1,19 @@
+{
+  "ui": {
+    "theme": "dark",
+    "sidebar_width": 303,
+    "log_max_lines": 739,
+    "auto_refresh": true
+  },
+  "pipeline": {
+    "default_mode": "LOCAL",
+    "timeout": 300,
+    "retry_attempts": 2,
+    "parallel_execution": false
+  },
+  "notifications": {
+    "enable_toasts": true,
+    "enable_sounds": true,
+    "email_notifications": false
+  }
+}
