@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import html
 import shutil
 from collections import defaultdict
@@ -12,6 +11,7 @@ from typing import Any, Dict, Iterable, List, Sequence, cast
 from .errors import PipelineError
 from .io import append_jsonl, read_jsonl, write_json, write_json_object
 from .timezone import dubai_now
+from scan import scan_paths as stream_scan_paths
 
 BUCKET_RULES: Dict[str, Sequence[str]] = {
     "docs": (".md", ".rst", ".txt"),
@@ -24,36 +24,21 @@ BUCKET_RULES: Dict[str, Sequence[str]] = {
 }
 
 
-def _hash_path(path: Path) -> str:
-    """경로의 해시를 계산 · Compute path hash."""
-
-    digest = hashlib.sha256(str(path).encode("utf-8")).hexdigest()
-    return digest
-
-
 def scan_paths(sources: Iterable[Path], emit: Path, safe_map_path: Path) -> list[dict[str, Any]]:
     """소스 경로를 스캔한다 · Scan source directories."""
 
-    records: list[dict[str, Any]] = []
-    safe_map: Dict[str, str] = {}
-    for base in sources:
-        for file_path in base.rglob("*"):
-            if not file_path.is_file():
-                continue
-            safe_id = _hash_path(file_path)
-            record = {
-                "safe_id": safe_id,
-                "path": str(file_path),
-                "name": file_path.name,
-                "ext": file_path.suffix.lower(),
-                "size": file_path.stat().st_size,
-                "parent": str(file_path.parent.name),
-            }
-            records.append(record)
-            safe_map[safe_id] = str(file_path)
-    write_json(emit, records)
+    file_records, safe_map = stream_scan_paths(tuple(sources))
+    payload: list[dict[str, Any]] = []
+    for record in file_records:
+        parent = Path(record.path).parent.name if record.path else ""
+        row: dict[str, Any] = {
+            **record.to_payload(),
+            "parent": parent,
+        }
+        payload.append(row)
+    write_json(emit, payload)
     write_json_object(safe_map_path, safe_map)
-    return records
+    return payload
 
 
 def _match_bucket(record: dict[str, Any]) -> str:

@@ -657,7 +657,7 @@ def derive_project_label(doc_ids: List[str], fallback: str) -> str:
 
 
 def simple_cluster(
-    items: Sequence[Dict[str, Any]], hints: Sequence[str]
+    items: Sequence[Dict[str, Any]], hints: Sequence[str], k: int | None = None
 ) -> Dict[str, Any]:
     """KR: 모듈 없이 실행되는 단순 군집화. EN: Lightweight cluster fallback."""
 
@@ -700,11 +700,13 @@ def simple_cluster(
                 "reasons": ["fallback_directory"],
             }
         )
+    if k is not None and k > 0:
+        projects = sorted(projects, key=lambda item: len(item["doc_ids"]), reverse=True)[:k]
     return {"projects": projects}
 
 
 def local_cluster(
-    items: Sequence[Dict[str, Any]], hints: Sequence[str]
+    items: Sequence[Dict[str, Any]], hints: Sequence[str], k: int | None = None
 ) -> Dict[str, Any]:
     """KR: TF-IDF 로컬 군집화. EN: Local TF-IDF clustering."""
 
@@ -750,18 +752,25 @@ def local_cluster(
     matrix = vectorizer.fit_transform(documents)
 
     n_docs = len(documents)
+    cluster_override = k if k and k > 0 else None
+
     if n_docs <= 2:
         labels = [0] * n_docs
     elif n_docs <= 20:
-        clustering = DBSCAN(eps=0.8, min_samples=2, metric="cosine")
-        labels = clustering.fit_predict(matrix)
-        if (labels == -1).all():
-            k = max(2, min(n_docs, int(math.sqrt(n_docs)) or 1))
-            kmeans = KMeans(n_clusters=k, n_init="auto", random_state=42)
+        if cluster_override is not None:
+            cluster_count = cluster_override
+            kmeans = KMeans(n_clusters=cluster_count, n_init="auto", random_state=42)
             labels = kmeans.fit_predict(matrix)
+        else:
+            clustering = DBSCAN(eps=0.8, min_samples=2, metric="cosine")
+            labels = clustering.fit_predict(matrix)
+            if (labels == -1).all():
+                cluster_count = max(2, min(n_docs, int(math.sqrt(n_docs)) or 1))
+                kmeans = KMeans(n_clusters=cluster_count, n_init="auto", random_state=42)
+                labels = kmeans.fit_predict(matrix)
     else:
-        k = max(2, min(12, int(math.sqrt(n_docs))))
-        kmeans = KMeans(n_clusters=k, n_init="auto", random_state=42)
+        cluster_count = cluster_override or max(2, min(12, int(math.sqrt(n_docs))))
+        kmeans = KMeans(n_clusters=cluster_count, n_init="auto", random_state=42)
         labels = kmeans.fit_predict(matrix)
 
     groups: Dict[int, List[int]] = defaultdict(list)
@@ -812,6 +821,8 @@ def local_cluster(
             }
         )
 
+    if cluster_override is not None and cluster_override > 0:
+        projects = sorted(projects, key=lambda item: len(item["doc_ids"]), reverse=True)[:cluster_override]
     return {"projects": projects}
 
 

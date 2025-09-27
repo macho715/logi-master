@@ -18,7 +18,6 @@ from core import (
     format_2d,
     generate_report,
     organize_projects,
-    scan_paths,
 )
 from core.errors import PipelineError
 from core.io import read_json, read_json_object, read_jsonl
@@ -92,8 +91,55 @@ def cli(
     default=Path('.cache/safe_map.json'),
     help='세이프 맵 경로 · Safe map path',
 )
+@click.option(
+    '--include',
+    'include_globs',
+    multiple=True,
+    help='포함 글롭 패턴 · Include glob pattern',
+)
+@click.option(
+    '--exclude',
+    'exclude_globs',
+    multiple=True,
+    help='제외 글롭 패턴 · Exclude glob pattern',
+)
+@click.option(
+    '--max-depth',
+    type=int,
+    default=None,
+    help='최대 재귀 깊이 · Maximum recursion depth',
+)
+@click.option(
+    '--batch-size',
+    type=int,
+    default=256,
+    help='배치 크기 · Batch size',
+)
+@click.option(
+    '--overall-timeout',
+    type=float,
+    default=None,
+    help='전체 타임아웃(초) · Overall timeout seconds',
+)
+@click.option(
+    '--per-batch-timeout',
+    type=float,
+    default=None,
+    help='배치 타임아웃(초) · Per batch timeout seconds',
+)
 @click.pass_context
-def scan(ctx: click.Context, paths: Sequence[Path], emit: Path, safe_map: Path) -> None:
+def scan(
+    ctx: click.Context,
+    paths: Sequence[Path],
+    emit: Path,
+    safe_map: Path,
+    include_globs: Sequence[str],
+    exclude_globs: Sequence[str],
+    max_depth: int | None,
+    batch_size: int,
+    overall_timeout: float | None,
+    per_batch_timeout: float | None,
+) -> None:
     '''소스 파일을 스캔한다 · Scan source files.'''
 
     config: PipelineConfig = ctx.obj['config']
@@ -102,13 +148,23 @@ def scan(ctx: click.Context, paths: Sequence[Path], emit: Path, safe_map: Path) 
         sources = tuple(paths)
     else:
         sources = config.resolve_sources(config.default_roots)
-    records = scan_paths(sources, emit, safe_map)
+    stats = stream_paths_to_files(
+        sources,
+        output_path=emit,
+        safe_map_path=safe_map,
+        include=include_globs,
+        exclude=exclude_globs,
+        max_depth=max_depth,
+        batch_size=batch_size,
+        overall_timeout=overall_timeout,
+        per_batch_timeout=per_batch_timeout,
+    )
     click.echo(
         json.dumps(
             {
                 'stage': 'scan',
-                'records': len(records),
-                'items': len(records),
+                'records': stats.processed,
+                'items': stats.processed,
                 'timestamp': dubai_now(),
             },
             ensure_ascii=False,
@@ -352,7 +408,11 @@ def run_pipeline(
 
         if 'scan' in step_list:
             sources = config.resolve_sources(config.default_roots)
-            scan_paths(sources, DEFAULT_SCAN, Path('.cache/safe_map.json'))
+            stream_paths_to_files(
+                sources,
+                output_path=DEFAULT_SCAN,
+                safe_map_path=Path('.cache/safe_map.json'),
+            )
             _record('scan', 'completed')
 
         if 'rules' in step_list:
@@ -424,3 +484,4 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 if __name__ == '__main__':  # pragma: no cover
     sys.exit(main())
+from scan import stream_paths_to_files
