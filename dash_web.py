@@ -185,8 +185,22 @@ def render_sidebar(config: PipelineConfig, data: PipelineData) -> SidebarState:
             "로컬 정리 파이프라인을 실행하고 모니터링합니다. Run and monitor the local organisation pipeline."
         )
 
-        mode = st.toggle("Hybrid GPT 모드 · Hybrid GPT mode", value=False)
+        mode = st.toggle("Hybrid GPT 모드 · Hybrid GPT mode", value=True)
         resolved_mode = "HYBRID" if mode else "LOCAL"
+
+        # API 키 상태 표시
+        api_key_status = os.environ.get("OPENAI_API_KEY")
+        if resolved_mode == "HYBRID":
+            if api_key_status:
+                st.success("✅ GPT API 키 설정됨 - Hybrid 모드 활성화")
+            else:
+                st.error("❌ OPENAI_API_KEY 미설정 - Hybrid 모드 비활성화")
+                st.info("LOCAL 모드로 자동 전환됩니다.")
+        else:
+            if api_key_status:
+                st.info("🔑 GPT API 키 설정됨 - Hybrid 모드 사용 가능")
+            else:
+                st.warning("⚠️ OPENAI_API_KEY 미설정")
 
         root_default = "\n".join(config.default_roots)
         root_text = st.text_area(

@@ -1109,11 +1109,22 @@ def cluster(scores: str, emit: str, project_mode: str, safe_map_path: str, hints
     items = json.loads(Path(scores).read_text(encoding="utf-8"))
     hints_list = [token.strip() for token in hints.split(",") if token.strip()]
     if project_mode.lower() == "gpt":
+        # GPT 모드 강제 실행 - 재시도 로직 포함
+        max_retries = 3
+        for attempt in range(max_retries):
         try:
+                click.echo(f"[cluster] GPT mode attempt {attempt + 1}/{max_retries}")
             output = gpt_cluster(items, safe_map_path=safe_map_path, hints=hints_list)
+                click.echo(f"[cluster] GPT mode succeeded on attempt {attempt + 1}")
+                break
         except Exception as exc:
-            click.echo(f"[cluster] GPT mode failed ({exc}); fallback to local")
+                click.echo(f"[cluster] GPT mode failed attempt {attempt + 1} ({exc})")
+                if attempt == max_retries - 1:
+                    click.echo(f"[cluster] GPT mode failed all {max_retries} attempts; fallback to local")
             output = local_cluster(items, hints_list)
+                else:
+                    import time
+                    time.sleep(2)  # 2초 대기 후 재시도
     else:
         output = local_cluster(items, hints_list)
 
