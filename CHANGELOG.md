@@ -13,11 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - File system error tracking and reporting
 - Memory usage monitoring guidelines
 - API key management security recommendations
+- Streaming file scanner with batch generator, cancellation, and timeout controls
+- JSON/safe-map streaming writers and benchmarking script for large directory scans
 
 ### Changed
 - Updated performance metrics and SLA targets
 - Enhanced error handling documentation
 - Improved system architecture recommendations
+- `scan.py` now delegates to the streaming scanner API with progress throttling and memory caps
 
 ### Fixed
 - Identified critical performance bottlenecks in large file scanning

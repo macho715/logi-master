@@ -3,99 +3,73 @@
 from __future__ import annotations
 
 import json
-import mimetypes
-from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Iterable, Sequence
+from typing import Callable, Iterable, Sequence
 
-from utils import ensure_directory, sha256_text, write_json
-
-
-@dataclass(slots=True)
-class FileRecord:
-    """단일 파일의 메타데이터입니다./Metadata for a single file."""
-
-    path: str
-    safe_id: str
-    name: str
-    ext: str
-    size: int
-    mtime: int
-    hint: str = ""
-    bucket: str | None = None
-    error: str | None = None
-
-    def to_payload(self) -> dict[str, object]:
-        """저장을 위한 딕셔너리를 반환합니다./Return dict payload for storage."""
-
-        payload = asdict(self)
-        return {k: v for k, v in payload.items() if v is not None and v != ""}
-
-
-def _is_textual(path: Path) -> bool:
-    """텍스트 파일 여부를 추정합니다./Heuristically detect text file."""
-
-    mime, _ = mimetypes.guess_type(path.name)
-    if mime and mime.startswith("text"):
-        return True
-    return path.suffix.lower() in {
-        ".md",
-        ".txt",
-        ".py",
-        ".json",
-        ".yml",
-        ".yaml",
-        ".cfg",
-        ".ini",
-        ".toml",
-        ".csv",
-    }
+from src.scanner import (
+    CancellationToken,
+    FileRecord,
+    ProgressEvent,
+    ScanOptions,
+    ScanStatistics,
+    run_scan_to_files,
+    scan_batches,
+)
+from src.utils.json_stream import JsonArrayWriter
+from src.utils.safe_map import SafeMapWriter
+from utils import ensure_directory, sha256_text
 
 
 def scan_paths(
-    paths: Sequence[Path], sample_bytes: int = 4096
+    paths: Sequence[Path],
+    *,
+    sample_bytes: int = 4096,
+    include: Sequence[str] | None = None,
+    exclude: Sequence[str] | None = None,
+    max_depth: int | None = None,
+    batch_size: int = 128,
+    throttle_interval: float = 0.2,
+    overall_timeout: float | None = None,
+    per_batch_timeout: float | None = None,
+    progress_callback: Callable[[ProgressEvent], None] | None = None,
+    cancellation_token: CancellationToken | None = None,
 ) -> tuple[list[FileRecord], dict[str, str]]:
     """경로 목록을 스캔합니다./Scan provided paths recursively."""
 
+    options = ScanOptions(
+        roots=[Path(path) for path in paths],
+        include=tuple(include or ()),
+        exclude=tuple(exclude or ()),
+        max_depth=max_depth,
+        batch_size=batch_size,
+        sample_bytes=sample_bytes,
+        throttle_interval=throttle_interval,
+        overall_timeout=overall_timeout,
+        per_batch_timeout=per_batch_timeout,
+    )
     records: list[FileRecord] = []
     safe_map: dict[str, str] = {}
-    for root in paths:
-        for child in root.rglob("*"):
-            if not child.is_file():
-                continue
-            try:
-                stat = child.stat()
-                safe_id = sha256_text(str(child))
-                hint = ""
-                if _is_textual(child):
-                    try:
-                        with child.open("rb") as handle:
-                            hint = handle.read(sample_bytes).decode("utf-8", errors="ignore")
-                    except OSError:
-                        hint = ""
-                record = FileRecord(
-                    path=str(child),
-                    safe_id=safe_id,
-                    name=child.name,
-                    ext=child.suffix.lower(),
-                    size=stat.st_size,
-                    mtime=int(stat.st_mtime),
-                    hint=hint,
+    for batch in scan_batches(
+        options,
+        progress_callback=progress_callback,
+        cancellation_token=cancellation_token,
+    ):
+        for record in batch.records:
+            records.append(record)
+            safe_map[record.safe_id] = record.path
+        for error in batch.errors:
+            error_path = Path(error.path)
+            records.append(
+                FileRecord(
+                    path=error.path,
+                    safe_id=sha256_text(error.path),
+                    name=error_path.name,
+                    ext=error_path.suffix.lower(),
+                    size=0,
+                    mtime=0,
+                    error=error.message,
                 )
-                records.append(record)
-                safe_map[safe_id] = str(child)
-            except OSError as exc:
-                records.append(
-                    FileRecord(
-                        path=str(child),
-                        safe_id=sha256_text(str(child)),
-                        name=child.name,
-                        ext=child.suffix.lower(),
-                        size=0,
-                        mtime=0,
-                        error=str(exc),
-                    )
-                )
+            )
     return records, safe_map
 
 
@@ -105,8 +79,12 @@ def emit_scan(
     """스캔 결과를 파일로 저장합니다./Persist scan results to disk."""
 
     ensure_directory(out_path.parent)
-    write_json(out_path, [record.to_payload() for record in records])
-    write_json(safe_map_path, safe_map)
+    with JsonArrayWriter(out_path) as writer:
+        for record in records:
+            writer.write(record.to_payload())
+    with SafeMapWriter(safe_map_path) as writer:
+        for safe_id, path in safe_map.items():
+            writer.append(safe_id, path)
 
 
 def load_records(path: Path) -> list[FileRecord]:
@@ -131,5 +109,48 @@ def load_records(path: Path) -> list[FileRecord]:
     return records
 
 
-__all__ = ["FileRecord", "emit_scan", "load_records", "scan_paths"]
+def stream_paths_to_files(
+    paths: Sequence[Path],
+    *,
+    output_path: Path,
+    safe_map_path: Path,
+    sample_bytes: int = 4096,
+    include: Sequence[str] | None = None,
+    exclude: Sequence[str] | None = None,
+    max_depth: int | None = None,
+    batch_size: int = 128,
+    throttle_interval: float = 0.2,
+    overall_timeout: float | None = None,
+    per_batch_timeout: float | None = None,
+    progress_callback: Callable[[ProgressEvent], None] | None = None,
+    cancellation_token: CancellationToken | None = None,
+) -> ScanStatistics:
+    """경로를 직접 파일로 기록합니다./Stream scan results directly to files."""
 
+    options = ScanOptions(
+        roots=[Path(path) for path in paths],
+        include=tuple(include or ()),
+        exclude=tuple(exclude or ()),
+        max_depth=max_depth,
+        batch_size=batch_size,
+        sample_bytes=sample_bytes,
+        throttle_interval=throttle_interval,
+        overall_timeout=overall_timeout,
+        per_batch_timeout=per_batch_timeout,
+    )
+    return run_scan_to_files(
+        options,
+        output_path=output_path,
+        safe_map_path=safe_map_path,
+        progress_callback=progress_callback,
+        cancellation_token=cancellation_token,
+    )
+
+
+__all__ = [
+    "FileRecord",
+    "emit_scan",
+    "load_records",
+    "scan_paths",
+    "stream_paths_to_files",
+]
