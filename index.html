@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="ko"> <!-- KR default + EN labels -->
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Logistics Control Tower v2.4 (Schedule Upload + Weather-linked)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <style>
+    body{background:#111827;color:#E5E7EB;font-family:'Segoe UI',sans-serif}
+    .leaflet-container{background:#374151;border-radius:.5rem}
+    .leaflet-tooltip{background:rgba(17,24,39,.9);color:#fff;border:1px solid #4B5563;box-shadow:none;font-weight:600;padding:4px 8px}
+    .blinking-dot{animation:blinker 1.5s linear infinite}@keyframes blinker{50%{opacity:.2}}
+    .scrollbar-hide::-webkit-scrollbar{display:none}.scrollbar-hide{-ms-overflow-style:none;scrollbar-width:none}
+    .modal{transition:opacity .25s ease; z-index:10000;}   /* 모달 최상위 */
+    body.modal-open{overflow:hidden;}
+    #map{position:relative; z-index:0;}
+    .leaflet-tooltip,.leaflet-popup{z-index:500 !important;}
+    .row-current{background:#374151}
+    .kbd{border:1px solid #4B5563;border-bottom-width:2px;border-radius:.375rem;padding:.15rem .35rem;font-family:ui-monospace, SFMono-Regular, Menlo, monospace}
+    .tag{font-size:.75rem;padding:.1rem .4rem;border:1px solid #4B5563;border-radius:.5rem}
+    .info-card{background:#1F2937;border:1px solid #374151;border-radius:.5rem;padding:.85rem}
+    .info-card h4{font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:#9CA3AF}
+    .info-card dl{margin-top:.5rem}
+    .info-card dt{color:#9CA3AF;font-size:.7rem;text-transform:uppercase;letter-spacing:.06em}
+    .info-card dd{color:#F9FAFB;font-weight:600;font-size:1rem;margin-top:.15rem}
+    .progress-track{height:.4rem;background:#374151;border-radius:9999px;overflow:hidden}
+    .progress-fill{height:100%;background:linear-gradient(90deg,#38BDF8,#6366F1)}
+  </style>
+</head>
+<body class="p-4">
+  <!-- Main Grid -->
+  <div class="grid grid-cols-1 lg:grid-cols-5 gap-4 h-[95vh]">
+    <div id="map" class="lg:col-span-3 rounded-lg shadow-lg border border-gray-700 h-full min-h-[400px]"></div>
+
+    <div class="lg:col-span-2 flex flex-col gap-4 h-full">
+      <!-- Vessel / Controls -->
+      <div id="info-panel" class="bg-gray-800 p-4 rounded-lg shadow-lg border border-gray-700">
+        <div class="flex items-center justify-between">
+          <h2 class="text-xl font-bold border-b border-gray-600 pb-2 mb-3">Vessel Control</h2>
+          <span class="tag">Local: Asia/Dubai</span>
+        </div>
+        <div id="vessel-info"><p class="text-gray-400">Loading vessel data...</p></div>
+
+        <div class="grid grid-cols-2 gap-2 mt-4">
+          <button id="briefing-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-3 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm">✨ Daily Briefing</button>
+          <button id="assistant-btn" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-3 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm">✨ Ask AI Assistant</button>
+        </div>
+
+        <!-- Upload controls -->
+        <div class="mt-4 grid grid-cols-2 gap-2">
+          <label class="w-full">
+            <input type="file" id="file-schedule" class="hidden" accept=".csv,.json"/>
+            <span id="label-schedule" class="w-full inline-flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded-lg cursor-pointer">Upload Schedule (CSV/JSON)</span>
+          </label>
+          <label class="w-full">
+            <input type="file" id="file-weather" class="hidden" accept=".csv"/>
+            <span id="label-weather" class="w-full inline-flex items-center justify-center bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-3 rounded-lg cursor-pointer">Upload Weather (CSV)</span>
+          </label>
+        </div>
+        <p class="mt-3 text-xs text-gray-400">Tips: Press <span class="kbd">Esc</span> to close modals. 파일 포맷은 하단 가이드를 참고.</p>
+      </div>
+
+      <!-- Schedule -->
+      <div class="bg-gray-800 p-4 rounded-lg shadow-lg border border-gray-700 flex-grow flex flex-col h-1/2">
+        <div class="flex items-center justify-between border-b border-gray-600 pb-2 mb-3">
+          <h2 class="text-xl font-bold">Full Voyage Schedule</h2>
+          <span id="linkage-badge" class="tag">Linked to Weather: OFF</span>
+        </div>
+        <div id="schedule-container" class="overflow-y-auto scrollbar-hide flex-grow"></div>
+      </div>
+
+      <!-- Risk + Status -->
+      <div id="risk-panel" class="bg-gray-800 p-4 rounded-lg shadow-lg border border-gray-700">
+        <h2 class="text-xl font-bold border-b border-gray-600 pb-2 mb-3">Risk Simulation & Control</h2>
+        <div class="flex items-center justify-between gap-3">
+          <p id="sim-time" class="text-lg font-mono"></p>
+          <div class="flex items-center gap-2">
+            <button id="btn-reset" class="bg-gray-700 hover:bg-gray-600 text-white text-sm px-3 py-2 rounded">Reset Sim</button>
+            <span class="tag" id="sim-speed">×4.00</span>
+          </div>
+        </div>
+        <div id="alert-container" class="mt-4">
+          <p class="text-green-400">✅ 시스템 정상. 활성 위험 없음.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Briefing Modal -->
+  <div id="briefing-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 opacity-0 pointer-events-none">
+    <div class="bg-gray-800 rounded-lg shadow-2xl p-6 w-full max-w-lg border border-gray-700">
+      <h2 id="modal-title" class="text-2xl font-bold text-indigo-400 mb-4">✨ AI-Generated Output</h2>
+      <div id="modal-content" class="text-gray-300 bg-gray-900 p-4 rounded-md min-h-[150px] whitespace-pre-line overflow-y-auto max-h-[60vh]"></div>
+      <button id="close-modal-btn" class="mt-6 w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">Close</button>
+    </div>
+  </div>
+
+  <!-- Assistant Modal -->
+  <div id="assistant-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 opacity-0 pointer-events-none">
+    <div class="bg-gray-800 rounded-lg shadow-2xl p-6 w-full max-w-2xl border border-gray-700 flex flex-col h-[80vh]">
+      <h2 class="text-2xl font-bold text-purple-400 mb-4">✨ AI Logistics Assistant</h2>
+      <div id="assistant-conversation" class="flex-grow bg-gray-900 p-4 rounded-md overflow-y-auto scrollbar-hide">
+        <div class="text-gray-400">무엇을 도와드릴까요? (예: “다음 3일 스케줄 요약”)</div>
+      </div>
+      <form id="assistant-form" class="mt-4 flex gap-2">
+        <input type="text" id="assistant-input" class="flex-grow bg-gray-700 text-white rounded-lg p-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="Ask a question...">
+        <button type="submit" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">Send</button>
+      </form>
+      <button id="close-assistant-btn" class="mt-2 w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">Close</button>
+    </div>
+  </div>
+
+  <script>
+  document.addEventListener('DOMContentLoaded', () => {
+    /* ----------------------------
+     * 0) Utils
+     * ---------------------------- */
+    const tz = 'Asia/Dubai';
+    const fmtIso = (d)=> new Date(d).toISOString();
+    const toLocal = (d)=> new Date(d).toLocaleString('en-GB',{ timeZone: tz, dateStyle:'short', timeStyle:'medium' });
+    const pad2 = (n)=> String(n).padStart(2,'0');
+    const clamp = (v,min,max)=> Math.max(min, Math.min(max,v));
+    const parseNum = (s)=> Number(String(s||'').trim());
+    const parseISO = (s)=> {
+      // allow 'YYYY-MM-DDTHH:mm(:ss)?Z?' or 'YYYY-MM-DD HH:mm'
+      if(!s) return null;
+      const t = String(s).trim().replace(' ', 'T');
+      return isNaN(Date.parse(t)) ? null : new Date(t);
+    };
+    const parseCSV = (text)=>{
+      // tiny CSV parser (no quoted commas handling)
+      const lines = text.trim().split(/\r?\n/);
+      const header = lines.shift().split(',').map(h=>h.trim());
+      return lines.map(line=>{
+        const cells = line.split(',').map(c=>c.trim());
+        const obj={};
+        header.forEach((h,i)=> obj[h]=cells[i]);
+        return obj;
+      });
+    };
+
+    /* ----------------------------
+     * 1) Map
+     * ---------------------------- */
+    const map = L.map('map').setView([24.7, 54.1], 8);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {maxZoom:19, attribution:'&copy; OpenStreetMap & CARTO'}).addTo(map);
+
+    const vesselIcon = L.icon({iconUrl:'https://i.imgur.com/G4Am98f.png', iconSize:[35,35]});
+    const vesselData = {
+      name:"JOPETWIL 71", imo:"9582829", mmsi:"470486000",
+      route:[
+        [24.3400,54.4500], [24.4300,54.4300], [24.4700,54.3900],
+        [24.5600,54.2000], [24.6500,54.0000], [24.8500,53.8000],
+        [24.9500,53.7400], [24.9500,53.3000], [25.0200,53.0600],
+        [24.8400,53.6500]
+      ],
+      marker:L.marker([24.34,54.45],{icon:vesselIcon})
+              .bindTooltip("JOPETWIL 71",{permanent:true,direction:'top',offset:[0,-18],className:'leaflet-tooltip'}),
+      routePolyline:null,
+      progress:0.00,
+      status:"Loading @ MW4",
+      currentVoyageId:null
+    };
+    vesselData.marker.addTo(map);
+    vesselData.routePolyline = L.polyline(vesselData.route, {color:'#FBBF24', weight:3, dashArray:'5,10'}).addTo(map);
+    map.fitBounds(vesselData.routePolyline.getBounds(), {padding:[20,20]});
+
+    /* ----------------------------
+     * 2) Simulation State
+     * ---------------------------- */
+    let currentSimDate = new Date("2025-09-28T12:00:00Z");
+    let speedFactor = 240; // UI 표시는 x4.00 (실시간 대비)
+    let weatherLinked = false;
+    const simSpeedBadge = document.getElementById('sim-speed');
+    const linkageBadge = document.getElementById('linkage-badge');
+    simSpeedBadge.textContent = '×4.00';
+
+    /* ----------------------------
+     * 3) Schedule & Weather Data
+     * ---------------------------- */
+    /** voyageSchedule: [{id,cargo,etd,eta,status}] */
+    let voyageSchedule = [
+      { id:"69th", cargo:"Dune Sand",  etd:"2025-09-28T16:00:00Z", eta:"2025-09-29T04:00:00Z", status:"Scheduled" },
+      { id:"70th", cargo:"10mm Agg.",  etd:"2025-09-30T16:00:00Z", eta:"2025-10-01T04:00:00Z", status:"Scheduled" },
+      { id:"71st", cargo:"5mm Agg.",   etd:"2025-10-02T16:00:00Z", eta:"2025-10-03T04:00:00Z", status:"Scheduled" }
+    ];
+
+    /** weatherWindows: [{start:Date,end:Date,level:'Warn'|'NoGo', waveM, windKt, visKm}] */
+    let weatherWindows = [];
+
+    /* ----------------------------
+     * 4) Haversine / Route Interp
+     * ---------------------------- */
+    const R=6371e3, toRad=d=>d*Math.PI/180;
+    function haversine(a,b){
+      const [lat1,lon1]=a,[lat2,lon2]=b;
+      const dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);
+      const phi1=toRad(lat1), phi2=toRad(lat2);
+      const h=Math.sin(dLat/2)**2 + Math.cos(phi1)*Math.cos(phi2)*Math.sin(dLon/2)**2;
+      return 2*R*Math.asin(Math.sqrt(h));
+    }
+    const segments=[]; let totalMeters=0;
+    for(let i=0;i<vesselData.route.length-1;i++){
+      const a=vesselData.route[i], b=vesselData.route[i+1];
+      const m=haversine(a,b);
+      segments.push({a,b,m,accStart:totalMeters,accEnd:totalMeters+m});
+      totalMeters+=m;
+    }
+    function interpolateOnRoute(progress){
+      const target=clamp(progress,0,1)*totalMeters;
+      const seg=segments.find(s=>target>=s.accStart && target<=s.accEnd) || segments[segments.length-1];
+      const t=(target-seg.accStart)/(seg.m||1);
+      const lat=seg.a[0]+(seg.b[0]-seg.a[0])*t;
+      const lon=seg.a[1]+(seg.b[1]-seg.a[1])*t;
+      return [Number(lat.toFixed(5)), Number(lon.toFixed(5))];
+    }
+
+    /* ----------------------------
+     * 5) UI Renderers
+     * ---------------------------- */
+    const infoPanel = document.getElementById('vessel-info');
+    const timeDisplay = document.getElementById('sim-time');
+    const scheduleContainer = document.getElementById('schedule-container');
+    const alertContainer = document.getElementById('alert-container');
+
+    function updateInfoPanel(){
+      const cur=vesselData.currentVoyageId||'N/A';
+      const activeVoyage=voyageSchedule.find(v=>v.id===cur) || null;
+      const totalVoyages=voyageSchedule.length;
+      const completedCount=voyageSchedule.filter(v=>v.status==='Completed').length;
+      const delayedCount=voyageSchedule.filter(v=>v.status==='Delayed').length;
+      const inTransitCount=voyageSchedule.filter(v=>String(v.status).toLowerCase().includes('transit')).length;
+      const pendingCount=voyageSchedule.filter(v=>v.status==='Scheduled').length;
+      const nextVoyage=[...voyageSchedule]
+        .filter(v=> new Date(v.etd)>currentSimDate && v.id!==cur)
+        .sort((a,b)=> new Date(a.etd)-new Date(b.etd))[0] || null;
+      const progressPct=Number.isFinite(vesselData.progress)
+        ? Math.round(clamp(vesselData.progress,0,1)*100)
+        : 0;
+      const currentWeatherWindow=weatherWindows.find(win=>{
+        const t=+currentSimDate;
+        return win.start && win.end && t>=+win.start && t<=+win.end;
+      }) || null;
+      const upcomingWeatherWindow=[...weatherWindows]
+        .filter(win=> win.start && +win.start>+currentSimDate)
+        .sort((a,b)=> +a.start-+b.start)[0] || null;
+      const weatherSummary=currentWeatherWindow
+        ? `Active ${currentWeatherWindow.level} window until ${toLocal(currentWeatherWindow.end)}`
+        : (upcomingWeatherWindow
+            ? `${upcomingWeatherWindow.level} window from ${toLocal(upcomingWeatherWindow.start)}`
+            : 'No weather impact forecasted');
+
+      const formatMetric=(value, suffix='')=>{
+        return Number.isFinite(value) ? `${Number(value).toFixed(2)}${suffix}` : '—';
+      };
+      const upcomingWaveText = upcomingWeatherWindow ? formatMetric(upcomingWeatherWindow.waveM, ' m') : null;
+      const upcomingWindText = upcomingWeatherWindow ? formatMetric(upcomingWeatherWindow.windKt, ' kt') : null;
+      const upcomingVisText = upcomingWeatherWindow ? formatMetric(upcomingWeatherWindow.visKm, ' km') : null;
+
+      const formatVoyageWindow=(voyage)=>{
+        if(!voyage) return '—';
+        return `${toLocal(voyage.etd)} → ${toLocal(voyage.eta)}`;
+      };
+
+      infoPanel.innerHTML =
+        `<div class="space-y-4">
+           <div>
+             <h3 class="text-2xl font-bold text-cyan-400">${vesselData.name}</h3>
+             <p class="text-sm text-gray-400">IMO: ${vesselData.imo} / MMSI: ${vesselData.mmsi}</p>
+           </div>
+           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+             <div class="info-card" role="group" aria-labelledby="fleet-metrics-title">
+               <h4 id="fleet-metrics-title">Fleet Snapshot</h4>
+               <dl class="grid grid-cols-2 gap-x-3 gap-y-2">
+                 <div>
+                   <dt>Planned</dt>
+                   <dd>${totalVoyages}</dd>
+                 </div>
+                 <div>
+                   <dt>Completed</dt>
+                   <dd>${completedCount}</dd>
+                 </div>
+                 <div>
+                   <dt>In Transit</dt>
+                   <dd>${inTransitCount}</dd>
+                 </div>
+                 <div>
+                   <dt>Delayed</dt>
+                   <dd>${delayedCount}</dd>
+                 </div>
+                 <div>
+                   <dt>Scheduled</dt>
+                   <dd>${pendingCount}</dd>
+                 </div>
+               </dl>
+             </div>
+             <div class="info-card" role="group" aria-labelledby="current-voyage-title">
+               <h4 id="current-voyage-title">Current Voyage</h4>
+               <div class="mt-3 space-y-2 text-sm">
+                 <p><span class="text-gray-400">Voyage</span> <span class="font-semibold text-white">${cur}</span></p>
+                 <p><span class="text-gray-400">Cargo</span> <span class="font-semibold text-white">${activeVoyage?.cargo || '—'}</span></p>
+                 <p><span class="text-gray-400">Status</span> <span class="font-semibold text-yellow-300">${vesselData.status}</span></p>
+                 <div>
+                   <p class="text-gray-400">Progress</p>
+                   <div class="progress-track mt-1" aria-hidden="true"><div class="progress-fill" style="width:${progressPct}%"></div></div>
+                   <p class="text-xs text-gray-500 mt-1">${progressPct}% complete</p>
+                 </div>
+               </div>
+             </div>
+             <div class="info-card sm:col-span-2" role="group" aria-labelledby="timeline-title">
+               <h4 id="timeline-title">Voyage Timeline</h4>
+               <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                 <div>
+                   <p class="text-gray-400">Current Window</p>
+                   <p class="font-semibold text-white">${activeVoyage ? formatVoyageWindow(activeVoyage) : '—'}</p>
+                 </div>
+                 <div>
+                   <p class="text-gray-400">Next Voyage</p>
+                   <p class="font-semibold text-white">${nextVoyage ? `${nextVoyage.id} · ${formatVoyageWindow(nextVoyage)}` : 'No upcoming voyage'}</p>
+                 </div>
+               </div>
+             </div>
+             <div class="info-card sm:col-span-2" role="group" aria-labelledby="weather-title">
+               <h4 id="weather-title">Weather Outlook</h4>
+               <div class="mt-3 text-sm space-y-1">
+                 <p class="font-semibold text-white">${weatherSummary}</p>
+                 ${upcomingWeatherWindow ? `<p class="text-gray-400">Next window: ${toLocal(upcomingWeatherWindow.start)} → ${toLocal(upcomingWeatherWindow.end)} · Sea: ${upcomingWaveText} · Wind: ${upcomingWindText} · Vis: ${upcomingVisText}</p>` : '<p class="text-gray-400">Monitoring live marine forecasts.</p>'}
+               </div>
+             </div>
+           </div>
+         </div>`;
+    }
+
+    function renderSchedule(){
+      let html = `<table class="w-full text-left text-sm">
+        <thead class="sticky top-0 bg-gray-800">
+          <tr>
+            <th class="p-2">Voyage</th>
+            <th class="p-2">Cargo</th>
+            <th class="p-2">ETD</th>
+            <th class="p-2">ETA</th>
+            <th class="p-2">Status</th>
+          </tr>
+        </thead><tbody>`;
+      voyageSchedule.forEach(v=>{
+        let c="text-gray-300", pill="";
+        if(v.status==="In Transit") { c="text-blue-300"; pill='<span class="tag">Sailing</span>'; }
+        else if(v.status==="Delayed") { c="text-red-300"; pill='<span class="tag">Delayed</span>'; }
+        else if(v.status==="Completed") { c="text-green-300"; pill='<span class="tag">Arrived</span>'; }
+        const hi=v.id===vesselData.currentVoyageId ? "row-current" : "";
+        html += `<tr id="voyage-${v.id}" class="border-t border-gray-700 ${hi}">
+                   <td class="p-2 font-bold">${v.id}</td>
+                   <td class="p-2">${v.cargo}</td>
+                   <td class="p-2">${toLocal(v.etd)}</td>
+                   <td class="p-2">${toLocal(v.eta)}</td>
+                   <td class="p-2 ${c} font-semibold">${v.status} ${pill}</td>
+                 </tr>`;
+      });
+      html += `</tbody></table>`;
+      scheduleContainer.innerHTML = html;
+
+      if(vesselData.currentVoyageId){
+        const row=document.getElementById(`voyage-${vesselData.currentVoyageId}`);
+        if(row) row.scrollIntoView({block:'center',behavior:'smooth'});
+      }
+    }
+
+    function setInfo(msgHtml, tone='info'){
+      const color = tone==='warn' ? 'bg-yellow-900 border-yellow-500 text-yellow-100'
+                   : tone==='danger' ? 'bg-red-900 border-red-500 text-red-100'
+                   : 'bg-gray-900 border-gray-600 text-gray-200';
+      alertContainer.innerHTML = `<div class="${color} px-4 py-3 rounded border">${msgHtml}</div>`;
+    }
+
+    /* ----------------------------
+     * 6) Weather → Risk Windows
+     *    CSV columns: start,end,wave_m,wind_kt,vis_km
+     *    Thresholds (editable)
+     * ---------------------------- */
+    const LIM = {
+      waveWarnM: 1.75, waveNoGoM: 2.25,
+      windWarnKt: 24, windNoGoKt: 30,
+      visNoGoKm: 1.0
+    };
+
+    function buildWeatherWindows(rows){
+      weatherWindows = rows.map(r=>{
+        const start = parseISO(r.start);
+        const end   = parseISO(r.end);
+        const wv = parseNum(r.wave_m);
+        const wd = parseNum(r.wind_kt);
+        const vs = parseNum(r.vis_km);
+        let level = 'None';
+        if(isFinite(wv) && isFinite(wd) && isFinite(vs)){
+          if(wv >= LIM.waveNoGoM || wd >= LIM.windNoGoKt || vs <= LIM.visNoGoKm) level='NoGo';
+          else if(wv >= LIM.waveWarnM || wd >= LIM.windWarnKt) level='Warn';
+        }
+        return { start, end, level, waveM:wv, windKt:wd, visKm:vs };
+      }).filter(w => w.start && w.end);
+    }
+
+    function findWeatherLevelAt(dt){
+      const t = +dt;
+      const w = weatherWindows.find(win => t>= +win.start && t<= +win.end);
+      return w ? w.level : 'None';
+    }
+
+    /* ----------------------------
+     * 7) Link Weather → Schedule
+     *    Rules:
+     *    - If ETD ∈ NoGo → push ETD/ETA +24h
+     *    - If ETA ∈ NoGo → set V69 standby or push arrival +12h
+     *    - Warn at sea → keep schedule, but mark (예: Sailing 유지)
+     *    Cascade: any shift propagates to later voyages (maintain relative gaps)
+     * ---------------------------- */
+    function relHours(a,b){ return ( (+a)-(+b) )/36e5; }
+
+    function applyWeatherToSchedule(){
+      if(weatherWindows.length===0){ linkageBadge.textContent='Linked to Weather: OFF'; return; }
+      linkageBadge.textContent='Linked to Weather: ON';
+
+      // sort by ETD ascending
+      voyageSchedule.sort((x,y)=> +new Date(x.etd) - +new Date(y.etd));
+
+      // Use rolling base
+      let lastETA = null;
+      let changes = [];
+
+      for(let i=0;i<voyageSchedule.length;i++){
+        const v = voyageSchedule[i];
+        let etd = new Date(v.etd);
+        let eta = new Date(v.eta);
+        // maintain minimum gap if previous voyage ended later
+        if(lastETA && +etd < +lastETA){
+          const deltaH = Math.ceil( relHours(lastETA, etd) );
+          etd = new Date(+etd + deltaH*36e5);
+          eta = new Date(+eta + deltaH*36e5);
+          changes.push(`${v.id}: shifted +${deltaH}h to keep sequence`);
+        }
+
+        const lvlAtETD = findWeatherLevelAt(etd);
+        const lvlAtETA = findWeatherLevelAt(eta);
+
+        if(lvlAtETD==='NoGo'){
+          etd = new Date(+etd + 24*36e5);
+          eta = new Date(+eta + 24*36e5);
+          v.status = 'Delayed';
+          changes.push(`${v.id}: ETD NoGo → +24h`);
+        }else if(lvlAtETA==='NoGo'){
+          // arrival blocked; choose policy: standby → push +12h
+          eta = new Date(+eta + 12*36e5);
+          v.status = 'Delayed';
+          changes.push(`${v.id}: ETA NoGo → +12h`);
+        }else{
+          // keep as is; if currently "Scheduled", remain.
+        }
+
+        v.etd = fmtIso(etd);
+        v.eta = fmtIso(eta);
+        lastETA = eta;
+      }
+
+      if(changes.length){
+        setInfo(`<strong>Weather linked.</strong><br>${changes.map(c=>`• ${c}`).join('<br>')}`, 'warn');
+      }else{
+        setInfo('날씨 연동됨. 변경 사항 없음.');
+      }
+      renderSchedule();
+    }
+
+    /* ----------------------------
+     * 8) Simulation
+     * ---------------------------- */
+    function chooseActiveVoyage(now){
+      return voyageSchedule.find(v => v.status==="In Transit" || (new Date(v.etd)<=now && v.status==="Scheduled" || v.status==="Delayed"));
+    }
+
+    function runSimulation(){
+      currentSimDate.setMinutes(currentSimDate.getMinutes() + (1 * speedFactor / 60));
+      timeDisplay.textContent = toLocal(currentSimDate);
+
+      let active = chooseActiveVoyage(currentSimDate);
+      if(active && vesselData.currentVoyageId!==active.id){
+        vesselData.currentVoyageId=active.id; vesselData.progress=0.00;
+      }
+
+      if(active){
+        const etd=new Date(active.etd), eta=new Date(active.eta);
+        const total=eta-etd;
+        if(currentSimDate>=etd && currentSimDate<=eta){
+          if(active.status!=="Delayed") active.status="In Transit";
+          vesselData.status = active.status==="Delayed" ? "In Transit (Delayed)" : "In Transit to AGI";
+          vesselData.progress=(currentSimDate-etd)/total;
+          const [lat,lon]=interpolateOnRoute(vesselData.progress);
+          vesselData.marker.setLatLng([lat,lon]);
+        }else if(currentSimDate>eta){
+          if(active.status!=="Completed"){
+            active.status="Completed";
+            vesselData.marker.setLatLng(vesselData.route[vesselData.route.length-1]);
+            vesselData.status="Discharging @ AGI";
+            setTimeout(()=>{
+              vesselData.marker.setLatLng(vesselData.route[0]);
+              vesselData.status="Ready for Loading @ MW4";
+              updateInfoPanel();
+            }, 4000);
+          }
+        }
+      }
+
+      updateInfoPanel();
+      renderSchedule();
+    }
+
+    /* ----------------------------
+     * 9) File Upload Hooks
+     * ---------------------------- */
+    const scheduleInput = document.getElementById('file-schedule');
+    const weatherInput  = document.getElementById('file-weather');
+    const scheduleLabel = document.getElementById('label-schedule');
+    const weatherLabel  = document.getElementById('label-weather');
+
+    scheduleLabel.addEventListener('click',()=> scheduleInput.click());
+    weatherLabel.addEventListener('click',()=> weatherInput.click());
+
+    scheduleInput.addEventListener('change', (e)=>{
+      if(e.target.files.length===0) return;
+      const f = e.target.files[0];
+      const reader = new FileReader();
+      reader.onload = () => {
+        try{
+          let rows;
+          if(f.name.toLowerCase().endsWith('.json')){
+            const data = JSON.parse(reader.result);
+            if(!Array.isArray(data)) throw new Error('JSON must be an array');
+            rows = data;
+          } else {
+            // CSV
+            rows = parseCSV(reader.result);
+          }
+          // Normalize and validate
+          const normalized = rows.map(r=>{
+            const id = r.id || r.Voyage || r.voyage || r.trip || '';
+            const cargo = r.cargo || r.Cargo || '';
+            const etd = r.etd || r.ETD || r.departure || '';
+            const eta = r.eta || r.ETA || r.arrival || '';
+            const status = r.status || r.Status || 'Scheduled';
+            const etdDt = parseISO(etd), etaDt = parseISO(eta);
+            if(!id || !cargo || !etdDt || !etaDt) throw new Error('Missing required fields (id,cargo,etd,eta)');
+            return { id:String(id).trim(), cargo:String(cargo).trim(), etd:fmtIso(etdDt), eta:fmtIso(etaDt), status:String(status).trim() };
+          });
+          voyageSchedule = normalized.sort((a,b)=> +new Date(a.etd)-+new Date(b.etd));
+          scheduleLabel.textContent = `Loaded: ${f.name}`;
+          setInfo(`스케줄 ${normalized.length}건 로드 완료.`, 'info');
+          renderSchedule();
+        }catch(err){
+          console.error(err);
+          setInfo(`⚠️ 스케줄 파일 오류: ${err.message}`, 'danger');
+        }
+      };
+      reader.readAsText(f);
+    });
+
+    weatherInput.addEventListener('change', (e)=>{
+      if(e.target.files.length===0) return;
+      const f = e.target.files[0];
+      const reader = new FileReader();
+      reader.onload = ()=>{
+        try{
+          const rows = parseCSV(reader.result);
+          // expect headers: start,end,wave_m,wind_kt,vis_km
+          buildWeatherWindows(rows);
+          weatherLabel.textContent = `Loaded: ${f.name}`;
+          weatherLinked = true;
+          applyWeatherToSchedule();
+        }catch(err){
+          console.error(err);
+          setInfo(`⚠️ 날씨 파일 오류: ${err.message}`, 'danger');
+        }
+      };
+      reader.readAsText(f);
+    });
+
+    /* ----------------------------
+     * 10) Modals + Assistant (Mock)
+     * ---------------------------- */
+    const briefingModal=document.getElementById('briefing-modal');
+    const assistantModal=document.getElementById('assistant-modal');
+    const modalTitle=document.getElementById('modal-title');
+    const modalContent=document.getElementById('modal-content');
+    const assistantConversation=document.getElementById('assistant-conversation');
+
+    function openModal(el){ el.classList.remove('opacity-0','pointer-events-none'); document.body.classList.add('modal-open'); }
+    function closeModal(el){ el.classList.add('opacity-0','pointer-events-none'); document.body.classList.remove('modal-open'); }
+    [briefingModal,assistantModal].forEach(m=> m.addEventListener('click', e=>{ if(e.target===m) closeModal(m); }));
+    document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ [briefingModal,assistantModal].forEach(closeModal); } });
+
+    async function callAI(prompt){
+      // NOTE: mocked. Replace with OpenAI proxy for prod.
+      await new Promise(r=>setTimeout(r, 700));
+      if(prompt.toLowerCase().includes('summarize')){
+        const next3 = voyageSchedule.slice(0,3).map(v=>`- ${v.id} (${v.cargo}): ${toLocal(v.etd)} → ${toLocal(v.eta)} · ${v.status}`).join('\n');
+        return `다음 3건 요약:\n${next3}`;
+      }
+      return 'AI 연결(모의). OpenAI 프록시 연결 시 실제 응답으로 대체.';
+    }
+
+    document.getElementById('briefing-btn').addEventListener('click', async ()=>{
+      modalTitle.textContent = '✨ Daily Briefing';
+      modalContent.innerHTML = '생성 중...';
+      openModal(briefingModal);
+      const cur = voyageSchedule.find(v=>v.id===vesselData.currentVoyageId);
+      const brief = `현재 시각 ${toLocal(currentSimDate)}.\n진행 항차: ${cur?.id || 'N/A'} / 화물: ${cur?.cargo || 'N/A'} / 상태: ${vesselData.status}. 안전 우선.`;
+      modalContent.innerHTML = brief.replace(/\n/g,'<br>');
+    });
+    document.getElementById('close-modal-btn').addEventListener('click', ()=>closeModal(briefingModal));
+
+    document.getElementById('assistant-btn').addEventListener('click', ()=>openModal(assistantModal));
+    document.getElementById('close-assistant-btn').addEventListener('click', ()=>closeModal(assistantModal));
+    document.getElementById('assistant-form').addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const input=document.getElementById('assistant-input');
+      const q=input.value.trim(); if(!q) return;
+      assistantConversation.innerHTML += `<div class="text-right my-2"><span class="bg-purple-800 p-2 rounded-lg inline-block">${q}</span></div>`;
+      input.value=''; assistantConversation.scrollTop=assistantConversation.scrollHeight;
+      const ans = await callAI(q);
+      assistantConversation.innerHTML += `<div class="text-left my-2"><span class="bg-gray-700 p-2 rounded-lg inline-block">${ans.replace(/\n/g,'<br>')}</span></div>`;
+      assistantConversation.scrollTop=assistantConversation.scrollHeight;
+    });
+
+    /* ----------------------------
+     * 11) Reset & Ticker
+     * ---------------------------- */
+    document.getElementById('btn-reset').addEventListener('click', ()=>{
+      currentSimDate = new Date("2025-09-28T12:00:00Z");
+      // 상태 초기화 (지연/완료를 "Scheduled"로 복구하지 않음: 사용자가 업로드한 스케줄 유지)
+      vesselData.currentVoyageId = null;
+      vesselData.status = "Ready @ MW4";
+      setInfo('시뮬레이션 시계가 초기화되었습니다.');
+    });
+
+    setInterval(runSimulation, 50);
+    runSimulation();
+  });
+  </script>
+
+  <!-- ===== 파일 포맷 가이드 =====
+  1) Schedule CSV (또는 JSON 배열)
+     Columns: id,cargo,etd,eta,status
+     - etd/eta: ISO-like, 예) 2025-09-28T16:00:00Z 또는 2025-09-28 16:00
+     - status는 없으면 "Scheduled"로 간주
+
+     예)
+     id,cargo,etd,eta,status
+     69th,Dune Sand,2025-09-28T16:00:00Z,2025-09-29T04:00:00Z,Scheduled
+     70th,10mm Agg.,2025-09-30 16:00,2025-10-01 04:00,Scheduled
+
+  2) Weather CSV
+     Columns: start,end,wave_m,wind_kt,vis_km
+     - start/end: ISO-like
+     - thresholds (편집 가능): waveWarnM=1.75, waveNoGoM=2.25, windWarnKt=24, windNoGoKt=30, visNoGoKm=1.0
+
+     예)
+     start,end,wave_m,wind_kt,vis_km
+     2025-09-29T04:00:00Z,2025-09-29T16:00:00Z,2.60,28,0.8
+     2025-10-01T00:00:00Z,2025-10-01T06:00:00Z,2.10,22,3.0
+
+  적용 규칙(기본):
+   - ETD가 NoGo 창에 걸리면: 해당 항차 ETD/ETA +24h
+   - ETA가 NoGo 창에 걸리면: 해당 항차 ETA +12h (도착 대기 처리)
+   - 이전 항차와 시간 중첩 시: 후속 항차를 순차적으로 밀어서 정렬(연쇄 지연)
+   - Warn은 일정 변경 없음(표시만), 필요 시 로직 확장 가능
+  =============================== -->
+</body>
+</html>

@@ -7,8 +7,12 @@
 - Documentation in Korean and English covering logistics validation flows.
 - Modular autosort components (`scan.py`, `classify.py`, `organize.py`, `report.py`, `utils.py`) with typed interfaces.
 - Refactored Streamlit dashboard with progress tracking, KPI cards, charts, search UI, and journal viewer.
+- Logistics Control Tower v2.4 single-page upgrade with schedule ingestion, weather-link badge, and localized labels.
+- Weather-linked rescheduling with upload validation, cascading delay logic, and accessible modal interactions.
 
 ### Changed
 - Updated README with logistics validation command reference.
 - Introduced `autosort.py` CLI entrypoint and delegated `devmind.py` to the new pipeline orchestrator.
 - Hardened rule loading to support escaped regex patterns and ignore pytest temp directories during classification.
+- De-duplicated UI logic and refreshed maritime visualization styling for the Control Tower.
+- Expanded the vessel control panel with live metrics, voyage timeline cards, and weather outlook summaries.
